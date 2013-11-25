@@ -134,51 +134,7 @@ void GenericProcessor::resetConnections()
     wasConnected = false;
 }
 
-void GenericProcessor::setNumSamples(MidiBuffer& events, int sampleIndex)
-{
 
-    uint8 data[2];
-
-    data[0] = BUFFER_SIZE; 	// most-significant byte
-    data[1] = nodeId; 		// least-significant byte
-
-    events.addEvent(data, 		// spike data
-                    2, 			// total bytes
-                    sampleIndex); // sample index
-
-}
-
-int GenericProcessor::getNumSamples(MidiBuffer& events)
-{
-
-    int numRead = 0;
-
-    if (events.getNumEvents() > 0)
-    {
-
-        // int m = events.getNumEvents();
-
-        //std::cout << getName() << " received " << m << " events." << std::endl;
-
-        MidiBuffer::Iterator i(events);
-        MidiMessage message(0xf4);
-
-        int samplePosition = -5;
-
-        while (i.getNextEvent(message, samplePosition))
-        {
-
-            const uint8* dataptr = message.getRawData();
-
-            if (*dataptr == BUFFER_SIZE)
-            {
-                numRead = message.getTimeStamp();
-            }
-        }
-    }
-
-    return numRead;
-}
 
 void GenericProcessor::setSourceNode(GenericProcessor* sn)
 {
@@ -396,34 +352,6 @@ void GenericProcessor::update()
 
 }
 
-// bool GenericProcessor::recordStatus(int chan)
-// {
-
-// 	return getEditor()->getRecordStatus(chan);//recordChannels[chan];
-
-
-// }
-
-// bool GenericProcessor::audioStatus(int chan)
-// {
-
-// 	return getEditor()->getAudioStatus(chan);//recordChannels[chan];
-
-
-// }
-
-// void GenericProcessor::generateDefaultChannelNames(StringArray& names)
-// {
-// 	names.clear();
-
-// 	for (int i = 0; i < settings.numOutputs; i++)
-// 	{
-// 		String channelName = "CH";
-// 		channelName += (i+1);
-// 		names.add(channelName);
-// 	}
-
-// }
 
 void GenericProcessor::enableEditor()
 {
@@ -442,6 +370,80 @@ void GenericProcessor::disableEditor()
 
     if (ed != nullptr)
         ed->stopAcquisition();
+}
+
+int GenericProcessor::getNumSamples(MidiBuffer& events)
+{
+    //
+    // This loops through all events in the buffer, and uses the BUFFER_SIZE
+    // events to determine the number of samples in the current buffer. If
+    // there are multiple such events, the one with the highest number of 
+    // samples will be used.
+    // This approach is not ideal, as it will become a problem if we allow
+    // the sample rate to change at different points in the signal chain.
+    //
+
+    int numRead = 0;
+
+    if (events.getNumEvents() > 0)
+    {
+
+        // int m = events.getNumEvents();
+        //std::cout << getName() << " received " << m << " events." << std::endl;
+
+        MidiBuffer::Iterator i(events);
+
+        const uint8* dataptr;
+        int dataSize;
+
+        int samplePosition = -5;
+
+        while (i.getNextEvent(dataptr, dataSize, samplePosition))
+        {
+
+            if (*dataptr == BUFFER_SIZE)
+            {
+                
+                numRead = samplePosition;
+
+            } else if (*dataptr == TTL &&    // a TTL event
+                        getNodeId() < 900 && // not handled by a specialized processor (e.g. AudioNode))
+                        *(dataptr+1) > 0)    // that's flagged for saving
+            {
+                // changing the const cast is dangerous, but probably necessary:
+                uint8* ptr = const_cast<uint8*>(dataptr);
+                *(ptr + 1) = 0; // set second byte of raw data to 0, so the event
+                                // won't be saved twice
+            }
+        }
+    }
+
+    return numRead;
+}
+
+void GenericProcessor::setNumSamples(MidiBuffer& events, int sampleIndex)
+{
+    //
+    // This amounts to adding a "buffer size" flag at a particular sample number,
+    // and a new flag is added each time "setNumSamples" is called.
+    // Thus, if the number of samples changes somewhere in the processing pipeline,
+    // the old sample number will remain. This is a problem if the number of 
+    // samples gets smaller.
+    // If we allow the sample rate to change (e.g., with a resampling node),
+    // this code will have to be updated. The easiest approach will be for each
+    // processor to ignore any buffer size events that don't come from its 
+    // immediate source.
+    //
+
+    uint8 data[2];
+
+    data[0] = BUFFER_SIZE;  // most-significant byte
+    data[1] = nodeId;       // least-significant byte
+
+    events.addEvent(data,       // spike data
+                    2,          // total bytes
+                    sampleIndex); // sample index
+
 }
 
 
@@ -491,9 +493,6 @@ void GenericProcessor::addEvent(MidiBuffer& eventBuffer,
     data[3] = eventChannel; // event channel
     memcpy(data + 4, eventData, numBytes);
 
-
-    //std::cout << 4 + numBytes << std::endl;
-
     eventBuffer.addEvent(data, 		// raw data
                          4 + numBytes, // total bytes
                          sampleNum);     // sample index
@@ -513,7 +512,8 @@ void GenericProcessor::addEvent(MidiBuffer& eventBuffer,
 void GenericProcessor::processBlock(AudioSampleBuffer& buffer, MidiBuffer& eventBuffer)
 {
 
-    int nSamples = getNumSamples(eventBuffer); // removes first value from midimessages
+    int nSamples = getNumSamples(eventBuffer); // finds buffer size and sets save
+                                               // flag on all TTL events to zero
 
     process(buffer, eventBuffer, nSamples);
 

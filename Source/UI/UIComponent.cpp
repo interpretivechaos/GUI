@@ -74,12 +74,14 @@ UIComponent::UIComponent(MainWindow* mainWindow_, ProcessorGraph* pgraph, AudioC
     std::cout << "Finished UI stuff." << std::endl << std::endl << std::endl;
 
     processorGraph->setUIComponent(this);
-    processorGraph->updatePointers(); // needs to happen after processorGraph gets the right pointers
+    
     processorList->setUIComponent(this);
     editorViewport->setUIComponent(this);
     dataViewport->setUIComponent(this);
     controlPanel->getAudioEditor()->setUIComponent(this);
     controlPanel->setUIComponent(this);
+    
+    processorGraph->updatePointers(); // needs to happen after processorGraph gets the right pointers
 
     //processorGraph->sendActionMessage("Test.");
 
@@ -261,6 +263,8 @@ PopupMenu UIComponent::getMenuForIndex(int menuIndex, const String& menuName)
         menu.addCommandItem(commandManager, toggleProcessorList);
         menu.addCommandItem(commandManager, toggleSignalChain);
         menu.addCommandItem(commandManager, toggleFileInfo);
+        menu.addSeparator();
+        menu.addCommandItem(commandManager, resizeWindow);
 
     }
     else if (menuIndex == 3)
@@ -301,7 +305,8 @@ void UIComponent::getAllCommands(Array <CommandID>& commands)
                              toggleFileInfo,
                              showHelp,
                              startEngine,
-                             sendTerminalCommand
+                             sendTerminalCommand,
+							resizeWindow
                             };
 
     commands.addArray(ids, numElementsInArray(ids));
@@ -391,6 +396,10 @@ void UIComponent::getCommandInfo(CommandID commandID, ApplicationCommandInfo& re
             result.setInfo("Show help...", "Show some freakin' help.", "General", 0);
             result.setActive(false);
             break;
+            
+        case resizeWindow:
+            result.setInfo("Reset window bounds", "Reset window bounds", "General", 0);
+            break;
 
         default:
             break;
@@ -407,7 +416,7 @@ bool UIComponent::perform(const InvocationInfo& info)
             {
                 FileChooser fc("Choose a file to load...",
                                File::getCurrentWorkingDirectory(),
-                               "*.xml",
+                               "*",
                                true);
 
                 if (fc.browseForFileToOpen())
@@ -479,6 +488,10 @@ bool UIComponent::perform(const InvocationInfo& info)
 
         case toggleSignalChain:
             editorViewportButton->toggleState();
+            break;
+            
+        case resizeWindow:
+            mainWindow->centreWithSize(800, 600);
             break;
 
         default:

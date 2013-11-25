@@ -70,7 +70,7 @@ void GenericEditor::constructorInitialize(GenericProcessor* owner, bool useDefau
     //Typeface::Ptr typeface = new CustomTypeface(mis);
     titleFont = Font("Small Text", 10, Font::plain);
 
-    if (!owner->isMerger() && !owner->isSplitter())
+    if (!owner->isMerger() && !owner->isSplitter() && !owner->isUtility())
     {
         std::cout << "Adding drawer button." << std::endl;
 
@@ -158,7 +158,7 @@ void GenericEditor::refreshColors()
         backgroundColor = getProcessorList()->findColour(SOURCE_COLOR);// Colour(255, 0, 0);//Colour(int(0.9*255.0f),int(0.019*255.0f),int(0.16*255.0f));
     else if (getProcessor()->isSink())
         backgroundColor = getProcessorList()->findColour(SINK_COLOR);//Colour(255, 149, 0);//Colour(int(0.06*255.0f),int(0.46*255.0f),int(0.9*255.0f));
-    else if (getProcessor()->isSplitter() || getProcessor()->isMerger())
+    else if (getProcessor()->isSplitter() || getProcessor()->isMerger() || getProcessor()->isUtility())
         backgroundColor =  getProcessorList()->findColour(UTILITY_COLOR);//Colour(40, 40, 40);//Colour(int(0.7*255.0f),int(0.7*255.0f),int(0.7*255.0f));
     else
         backgroundColor =  getProcessorList()->findColour(FILTER_COLOR);//Colour(255, 89, 0);//Colour(int(1.0*255.0f),int(0.5*255.0f),int(0.0*255.0f));
@@ -361,7 +361,7 @@ void GenericEditor::timerCallback()
 void GenericEditor::buttonClicked(Button* button)
 {
 
-    std::cout << "Button clicked." << std::endl;
+   // std::cout << "Button clicked." << std::endl;
 
     checkDrawerButton(button);
 

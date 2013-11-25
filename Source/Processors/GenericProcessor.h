@@ -363,6 +363,12 @@ public:
     {
         return false;
     }
+    
+    /** Returns true if a processor is a utility (non-merger or splitter), false otherwise.*/
+    virtual bool isUtility()
+    {
+        return false;
+    }
 
     /** Returns true if a processor is able to send its output to a given processor.
 
@@ -577,7 +583,7 @@ private:
 
     /** Automatically extracts the number of samples in the buffer, then
     calls the process(), where custom actions take place.*/
-    void processBlock(AudioSampleBuffer& buffer, MidiBuffer& midiMessages);
+    virtual void processBlock(AudioSampleBuffer& buffer, MidiBuffer& midiMessages);
 
     /** The name of the processor.*/
     const String name;

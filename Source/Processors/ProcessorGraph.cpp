@@ -119,6 +119,7 @@ void ProcessorGraph::createDefaultNodes()
 void ProcessorGraph::updatePointers()
 {
     getAudioNode()->setUIComponent(getUIComponent());
+    getAudioNode()->updateBufferSize();
     getRecordNode()->setUIComponent(getUIComponent());
 }
 
@@ -225,7 +226,30 @@ void ProcessorGraph::restoreParameters()
 
 }
 
+Array<GenericProcessor*> ProcessorGraph::getListOfProcessors()
+{
 
+    Array<GenericProcessor*> a;
+
+     for (int i = 0; i < getNumNodes(); i++)
+    {
+        Node* node = getNode(i);
+
+        int nodeId = node->nodeId;
+
+        if (nodeId != OUTPUT_NODE_ID &&
+            nodeId != AUDIO_NODE_ID &&
+            nodeId != RECORD_NODE_ID &&
+            nodeId != RESAMPLING_NODE_ID)
+        {
+            GenericProcessor* p =(GenericProcessor*) node->getProcessor();
+            a.add(p);
+        }
+    }
+
+    return a;
+
+}
 
 void ProcessorGraph::clearConnections()
 {
@@ -304,7 +328,7 @@ void ProcessorGraph::updateConnections(Array<SignalChainTabButton*, CriticalSect
 
                 // add the connections to audio and record nodes if necessary
                 if (!(source->isSink() ||
-                      source->isSplitter() || source->isMerger()) && !(source->wasConnected))
+                      source->isSplitter() || source->isMerger() || source->isUtility()) && !(source->wasConnected))
                 {
                     std::cout << "   Connecting to audio and record nodes." << std::endl;
 
@@ -315,6 +339,7 @@ void ProcessorGraph::updateConnections(Array<SignalChainTabButton*, CriticalSect
                     {
 
                         getAudioNode()->addInputChannel(source, chan);
+                        getAudioNode()->settings.sampleRate = source->getSampleRate(); // THIS IS A HACK TO MAKE SURE AUDIO NODE KNOWS WHAT THE SAMPLE RATE SHOULD BE
 
                         // std::cout << "Connecting to audio channel: " <<
                         // 	      getAudioNode()->getNextChannel(false) << std::endl;

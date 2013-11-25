@@ -53,13 +53,14 @@ RHD2000Editor::RHD2000Editor(GenericProcessor* parentNode,
     // add Bandwidth selection
     bandwidthInterface = new BandwidthInterface(board, this);
     addAndMakeVisible(bandwidthInterface);
-    bandwidthInterface->setBounds(80, 65, 100, 50);
+    bandwidthInterface->setBounds(80, 65, 80, 50);
 
     // add rescan button
     rescanButton = new UtilityButton("RESCAN", Font("Small Text", 13, Font::plain));
     rescanButton->setRadius(3.0f);
     rescanButton->setBounds(6, 108,65,18);
     rescanButton->addListener(this);
+    rescanButton->setTooltip("Check for connected headstages");
     addAndMakeVisible(rescanButton);
 
     for (int i = 0; i < 2; i++)
@@ -74,19 +75,34 @@ RHD2000Editor::RHD2000Editor(GenericProcessor* parentNode,
 
         addAndMakeVisible(button);
         button->addListener(this);
+        
+        if (i == 0)
+        {
+            button->setTooltip("Audio monitor left channel");
+        } else {
+            button->setTooltip("Audio monitor right channel");
+        }
     }
+    
 
     audioLabel = new Label("audio label", "Audio out");
-    audioLabel->setBounds(180,25,180,15);
+    audioLabel->setBounds(180,25,75,15);
     audioLabel->setFont(Font("Small Text", 10, Font::plain));
     audioLabel->setColour(Label::textColourId, Colours::darkgrey);
     addAndMakeVisible(audioLabel);
 
+    // add HW audio parameter selection
+    audioInterface = new AudioInterface(board, this);
+    addAndMakeVisible(audioInterface);
+    audioInterface->setBounds(165, 65, 65, 50);
+    
+    
     adcButton = new UtilityButton("ADC 1-8", Font("Small Text", 13, Font::plain));
     adcButton->setRadius(3.0f);
-    adcButton->setBounds(180, 70,65,18);
+    adcButton->setBounds(165,100,65,18);
     adcButton->addListener(this);
     adcButton->setClickingTogglesState(true);
+    adcButton->setTooltip("Enable/disable ADC channels");
     addAndMakeVisible(adcButton);
 
 
@@ -105,7 +121,7 @@ void RHD2000Editor::scanPorts()
 void RHD2000Editor::buttonEvent(Button* button)
 {
 
-    if (button == rescanButton)
+    if (button == rescanButton && !acquisitionIsActive)
     {
         board->scanPorts();
 
@@ -123,7 +139,7 @@ void RHD2000Editor::buttonEvent(Button* button)
     {
         channelSelector->setRadioStatus(true);
     }
-    else if (button == adcButton)
+    else if (button == adcButton && !acquisitionIsActive)
     {
         board->enableAdcs(button->getToggleState());
         getEditorViewport()->makeEditorVisible(this, false, true);
@@ -278,6 +294,16 @@ void BandwidthInterface::labelTextChanged(Label* label)
             label->setText(String(roundFloatToInt(actualLowerBandwidth)), dontSendNotification);
         }
     }
+    else if (editor->acquisitionIsActive)
+    {
+        editor->sendActionMessage("Can't change bandwidth while acquisition is active!");
+        if (label == upperBandwidthSelection)
+            label->setText(lastHighCutString, dontSendNotification);
+        else
+            label->setText(lastLowCutString, dontSendNotification);
+        return;
+    }
+
 }
 
 void BandwidthInterface::setLowerBandwidth(double value)
@@ -547,3 +573,98 @@ void HeadstageOptionsInterface::paint(Graphics& g)
     g.drawText(name, 8, 2, 200, 15, Justification::left, false);
 
 }
+
+
+// (Direct OpalKelly) Audio Options --------------------------------------------------------------------
+
+AudioInterface::AudioInterface(RHD2000Thread* board_,
+                                       RHD2000Editor* editor_) :
+board(board_), editor(editor_)
+{
+    
+    name = "Noise Slicer";
+    
+    lastNoiseSlicerString = "0";
+    
+    actualNoiseSlicerLevel = 0.0f;
+    
+    noiseSlicerLevelSelection = new Label("Noise Slicer",lastNoiseSlicerString); // this is currently set in RHD2000Thread, the cleaner would be to set it here again
+    noiseSlicerLevelSelection->setEditable(true,false,false);
+    noiseSlicerLevelSelection->addListener(this);
+    noiseSlicerLevelSelection->setBounds(30,10,30,20);
+    noiseSlicerLevelSelection->setColour(Label::textColourId, Colours::darkgrey);
+    addAndMakeVisible(noiseSlicerLevelSelection);
+    
+    
+}
+
+AudioInterface::~AudioInterface()
+{
+    
+}
+
+
+void AudioInterface::labelTextChanged(Label* label)
+{
+    if (board->foundInputSource())
+    {
+        if (label == noiseSlicerLevelSelection)
+        {
+            
+            Value val = label->getTextValue();
+            int requestedValue = int(val.getValue()); // Note that it might be nice to translate to actual uV levels (16*value)
+            
+            if (requestedValue < 0 || requestedValue > 127)
+            {
+                editor->sendActionMessage("Value out of range.");
+                
+                label->setText(lastNoiseSlicerString, dontSendNotification);
+                
+                return;
+            }
+            
+            actualNoiseSlicerLevel = board->setNoiseSlicerLevel(requestedValue);
+            
+            std::cout << "Setting Noise Slicer Level to " << requestedValue << std::endl;
+            label->setText(String((roundFloatToInt)(actualNoiseSlicerLevel)), dontSendNotification);
+
+        }
+    }
+    else {
+        Value val = label->getTextValue();
+        int requestedValue = int(val.getValue()); // Note that it might be nice to translate to actual uV levels (16*value)
+        if (requestedValue < 0 || requestedValue > 127)
+        {
+            editor->sendActionMessage("Value out of range.");
+            label->setText(lastNoiseSlicerString, dontSendNotification);
+            return;
+        }
+    }
+}
+
+void AudioInterface::setNoiseSlicerLevel(int value)
+{
+    actualNoiseSlicerLevel = board->setNoiseSlicerLevel(value);
+    noiseSlicerLevelSelection->setText(String(roundFloatToInt(actualNoiseSlicerLevel)), dontSendNotification);
+}
+
+int AudioInterface::getNoiseSlicerLevel()
+{
+    return actualNoiseSlicerLevel;
+}
+
+
+void AudioInterface::paint(Graphics& g)
+{
+    
+    g.setColour(Colours::darkgrey);
+    
+    g.setFont(Font("Small Text",9,Font::plain));
+    
+    g.drawText(name, 0, 0, 200, 15, Justification::left, false);
+    
+    g.drawText("Level: ", 0, 10, 200, 20, Justification::left, false);
+    
+}
+
+

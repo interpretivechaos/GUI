@@ -31,12 +31,12 @@ RecordControlEditor::RecordControlEditor(GenericProcessor* parentNode, bool useD
 {
     desiredWidth = 170;
 
-    channelSelector->eventsOnly = true;
+    //channelSelector->eventsOnly = true;
 
-    chanSel = new Label("Chanel Text","Available Event Channels");
+    chanSel = new Label("Channel Text","Trigger Channel:");
     chanSel->setEditable(false);
     chanSel->setJustificationType(Justification::centredLeft);
-    chanSel->setBounds(20,30,120,20);
+    chanSel->setBounds(15,35,120,20);
 
     addAndMakeVisible(chanSel);
 
@@ -50,29 +50,79 @@ RecordControlEditor::RecordControlEditor(GenericProcessor* parentNode, bool useD
     availableChans->setSelectedId(0);
 
     addAndMakeVisible(availableChans);
-
+    
+    availableChans->addItem("None",1);
+    for (int i = 0; i < 10 ; i++)
+    {
+        String channelName = "Channel ";
+        channelName += i + 1;
+        availableChans->addItem(channelName,i+2);
+    }
+    
+    newFileToggleButton = new UtilityButton("SPLIT FILES", Font("Small Text", 13, Font::plain));
+    newFileToggleButton->setRadius(3.0f);
+    newFileToggleButton->setBounds(35, 95, 90, 18);
+    newFileToggleButton->addListener(this);
+    newFileToggleButton->setClickingTogglesState(true);
+    addAndMakeVisible(newFileToggleButton);
 
 }
 
 RecordControlEditor::~RecordControlEditor()
 {
-    deleteAllChildren();
+    
 }
 
 void RecordControlEditor::comboBoxChanged(ComboBox* comboBox)
 {
-    RecordControl* processor = (RecordControl*)getProcessor();
-    if (comboBox->getSelectedId() > 0)
-        processor->updateTriggerChannel(processor->eventChannels[comboBox->getSelectedId()-1]->num);
+
+    if (comboBox->getSelectedId() > 1)
+        getProcessor()->setParameter(0, (float) comboBox->getSelectedId()-2);
     else
-        processor->updateTriggerChannel(-1);
+        getProcessor()->setParameter(0, -1);
+}
+
+void RecordControlEditor::buttonEvent(Button* button)
+{
+
+    if (button->getToggleState())
+    {
+        getProcessor()->setParameter(1, 1.0f);
+    } else {
+        getProcessor()->setParameter(1, 0.0f);
+    }
 }
 
 void RecordControlEditor::updateSettings()
 {
-    availableChans->clear();
-    GenericProcessor* processor = getProcessor();
-    for (int i = 0; i < processor->eventChannels.size() ; i++)
-        availableChans->addItem(processor->eventChannels[i]->name,i+1);
+    //availableChans->clear();
+    //GenericProcessor* processor = getProcessor();
+    
 
+}
+
+void RecordControlEditor::saveEditorParameters(XmlElement* xml)
+{
+    
+    XmlElement* info = xml->createNewChildElement("PARAMETERS");
+    
+    info->setAttribute("Type", "RecordControlEditor");
+    info->setAttribute("Channel",availableChans->getSelectedId());
+    info->setAttribute("FileSaveOption",newFileToggleButton->getToggleState());
+    
+}
+
+void RecordControlEditor::loadEditorParameters(XmlElement* xml)
+{
+     
+    forEachXmlChildElement(*xml, xmlNode)
+    {
+        
+        if (xmlNode->hasTagName("PARAMETERS"))
+        {
+            newFileToggleButton->setToggleState(xmlNode->getBoolAttribute("FileSaveOption"), true);
+            availableChans->setSelectedId(xmlNode->getIntAttribute("Channel"), sendNotification);
+        }
+
+    }
 }

@@ -59,6 +59,7 @@ public:
     */
     void process(AudioSampleBuffer& buffer, MidiBuffer& eventBuffer, int& nSamples);
 
+
     /** Overrides implementation in GenericProcessor; used to change recording parameters
         on the fly.
 
@@ -101,6 +102,16 @@ public:
     /** Creates a new data directory in the location specified by the fileNameComponent.
     */
     void createNewDirectory();
+    
+    /** Creates a new data file for each channel.
+     */
+    void createNewFiles();
+    
+    /** Creates a new data file for each channel.
+     */
+    void appendTrialNumber(bool);
+    
+    void updateTrialNumber();
 
     File getDataDirectory()
     {
@@ -149,8 +160,11 @@ private:
     */
     int64 timestamp;
 
-    /** Integer to keep track of the number samples written in each buffer */
-    int sampleCount;
+    /** Integer to keep track of the number samples written in each block */
+    int blockIndex;
+
+    /** Integer to keep track of number of recording sessions in the same file */
+    uint16 recordingNumber;
 
     /** Used to generate timestamps if none are given.
     */
@@ -203,6 +217,9 @@ private:
     char* recordMarker;
     
     CriticalSection diskWriteLock;
+    
+    bool appendTrialNum;
+    int trialNum;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(RecordNode);
 
