@@ -47,6 +47,7 @@
 #include "ArduinoOutput.h"
 #include "FPGAOutput.h"
 #include "PulsePalOutput.h"
+#include "EngineProcessor.h"
 #include "Utilities/RecordControl.h"
 #include "Utilities/Splitter.h"
 #include "Utilities/Merger.h"
@@ -137,7 +138,7 @@ void* ProcessorGraph::createNewProcessor(String& description)//,
         std::cout << "  Adding node to graph with ID number " << id << std::endl;
 
         processor->setUIComponent(getUIComponent()); // give access to important pointers
-
+        
         addNode(processor,id); // have to add it so it can be deleted by the graph
 
         return processor->createEditor();
@@ -589,6 +590,12 @@ GenericProcessor* ProcessorGraph::createProcessorFromDescription(String& descrip
             std::cout << "Creating a Pulse Pal output node." << std::endl;
             processor = new PulsePalOutput();
         }
+        else if (subProcessorType.equalsIgnoreCase("Send to Matlab"))
+        {
+            std::cout << "Creating an EngineProcessor output node." << std::endl;
+            processor = new EngineProcessor();
+        }
+
 
         sendActionMessage("New sink created.");
     }

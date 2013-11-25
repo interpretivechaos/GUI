@@ -66,7 +66,7 @@ class UIComponent : public Component,
 
 {
 public:
-    UIComponent(MainWindow* mainWindow_, ProcessorGraph* pgraph, AudioComponent* audio);
+    UIComponent(MainWindow* mainWindow_, ProcessorGraph* pgraph, AudioComponent* audio, MatlabEngineInterface* matlabEngineInterface);
     ~UIComponent();
 
     /** Returns a pointer to the EditorViewport. */
@@ -115,6 +115,13 @@ public:
     AudioComponent* getAudioComponent()
     {
         return audio;
+    }
+
+    /** Returns a pointer to the MatlabEngineInterface. */
+    MatlabEngineInterface* getMatlabEngineInterface()
+    {
+        return matlabEngineInterface;
+        std::cout << "UI got matlabEngineInterface." << std::endl;
     }
 
     /** Stops the callbacks to the ProcessorGraph which drive data acquisition. */
@@ -178,6 +185,9 @@ private:
     /** Pointer to the GUI's AudioComponent. Owned by the MainWindow. */
     AudioComponent* audio;
 
+    /** Pointer to the GUI's MatlabEngineInterface. Owned by the MainWindow. */
+    MatlabEngineInterface* matlabEngineInterface;
+
     /** Resizes all of components inside the UIComponent to fit the new boundaries
     of the MainWindow, or to account for opening/closing events.*/
     void resized();
@@ -195,7 +205,9 @@ private:
         toggleProcessorList 	= 0x2008,
         toggleSignalChain	    = 0x2009,
         toggleFileInfo			= 0x2010,
-        showHelp				= 0x2011
+        showHelp				= 0x2011,
+        startEngine             = 0x2012,
+        sendTerminalCommand     = 0x2013
     };
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(UIComponent);

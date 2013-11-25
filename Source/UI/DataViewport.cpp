@@ -52,9 +52,9 @@ DataViewport::~DataViewport()
 int DataViewport::addTabToDataViewport(String name, Component* component, GenericEditor* editor)
 {
 
-    if (tabArray.size() == 0)
+    if (tabArray.size() == 0){
         setVisible(true);
-
+    }
     int tabIndex = getTabbedButtonBar().getNumTabs();
 
     // Viewport* viewport = new Viewport();

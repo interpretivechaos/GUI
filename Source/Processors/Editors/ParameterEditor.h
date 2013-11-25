@@ -45,7 +45,8 @@ class ParameterCheckbox;
 
 class ParameterEditor : public Component,
     public Button::Listener,
-    public Slider::Listener
+    public Slider::Listener,
+    public Label::Listener
 
 {
 public:
@@ -60,6 +61,7 @@ public:
 
     void buttonClicked(Button* button);
     void sliderValueChanged(Slider* slider);
+    void labelTextChanged (Label *labelThatHasChanged);
 
     void setChannelSelector(ChannelSelector* ch)
     {
@@ -83,6 +85,7 @@ private:
     Parameter* parameter;
     GenericProcessor* processor;
     ChannelSelector* channelSelector;
+
 
     enum
     {

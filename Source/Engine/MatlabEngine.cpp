@@ -22,17 +22,27 @@
 */
 
 #include "MatlabEngine.h"
+
 MatlabEngineInterface::MatlabEngineInterface() {
     // specifies number of processors sending information to matlab
     numNodesToMatlab = 0;
     numNodesFromMatlab = 0;
+    numNodes=0;
+    engineInitialized=FALSE;
+
     // numChannels = 1;
 
     const char* fieldNames[] = {"nodeID", "Type", "Data"};
     // Creates a numChannels column vector of structure, with field types specified above 
+    int numberOfFields=sizeof(fieldNames)/sizeof(*fieldNames);
+    
+    toMatlab = mxCreateStructMatrix(1, 1, numberOfFields, fieldNames);
+    mxArray* nodeField=mxCreateDoubleScalar(1);
+    mxSetField(toMatlab, 1, "nodeID", nodeField);
+    // fromMatlab = mxCreateStructMatrix(1, 1, numberOfFields, fieldNames);
+    // mxSetField(fromMatlab, 1, "nodeID", nodeField);
 
-    toMatlab = mxCreateStructMatrix(numNodesToMatlab, 1, sizeof(fieldNames), fieldNames);
-    fromMatlab = mxCreateStructMatrix(numNodesToMatlab, 1, sizeof(fieldNames), fieldNames);
+    // std::cout << "Created MatlabEngineInterface with address "<< this << std::endl;
 }
 
 MatlabEngineInterface::~MatlabEngineInterface()
@@ -40,56 +50,85 @@ MatlabEngineInterface::~MatlabEngineInterface()
     
 }
 
-bool MatlabEngineInterface::InitializeMatlabEngine(){
-	// Prevent different threads from using any Engine functions
-	std::lock_guard<std::recursive_mutex> lock(mutex);
-	
-    if (engineInitialized == FALSE)
+bool MatlabEngineInterface::initializeMatlabEngine(){
+
+
+    if (!engineInitialized)
     {
+        std::cout<<"initializeMatlabEngine: engineInitialized ==" << engineInitialized <<"@" << this << std::endl;
+
+        // Prevent different threads from using any Engine functions
+        std::lock_guard<std::recursive_mutex> lock(std::mutex);
+
         if (!(ep = engOpen(""))) {
-            std::cout<<"Can't start MATLAB engine"<<std::endl;
+            sendActionMessage("Can't start MATLAB engine");
+            // std::cout<<"Can't start MATLAB engine"<<std::endl;
             return FALSE;
-        } else {
-            return TRUE;
         }
-    } else {
+        else
+        {
+
+            // std::cout<<"Started MATLAB engine"<<std::endl;
+            sendActionMessage("Started MATLAB engine");
+            engineInitialized =TRUE;
+            engOutBuffer[engOutBufferSize]='\0';
+            engOutputBuffer(ep, engOutBuffer, engOutBufferSize);
+
+            matlabTerminal = new MatlabTerminal();
+            matlabTerminal->setMatlabEngineInterface(this);
+            getDataViewport()->addTabToDataViewport("MATLAB", matlabTerminal, 0);
+            std::cout<<"Added MATLAB Terminal Tab"<<std::endl;
+            return TRUE;
+
+        }
+    }
+    else {
         std::cout << "Matlab Engine Already Initialized"<<std::endl;
+        sendActionMessage("Matlab Engine Already Initialized");
+
         return FALSE;
     }
 }
 
-void MatlabEngineInterface::SendBufferToMatlab(AudioSampleBuffer& buffer, MidiBuffer& eventBuffer, int& nSamples, int nodeID=-1){
-	// Prevent different threads from using any Engine functions
-	std::lock_guard<std::recursive_mutex> lock(mutex);
+void MatlabEngineInterface::sendBufferToMatlab(AudioSampleBuffer& buffer, String bufferVarName, MidiBuffer& eventBuffer, int& nSamples, int nodeID){
 
     int numChannels = buffer.getNumChannels();
     int numSamples = buffer.getNumSamples();
-    numNodesToMatlab++;
 
-    bool makeNewNode = TRUE;
-    int nodeIndex = numNodesToMatlab;
-    if (nodeID==-1)
-	{
-		nodeID=numNodesToMatlab;
-	}
-    for (int i = 0; i < numNodesToMatlab; ++i)
-    {
+ //    bool makeNewNode = TRUE;
+ //    int nodeIndex = numNodesToMatlab;
+ //    if (nodeID > numNodesToMatlab)
+ //    {
+ //        makeNewNode = TRUE;
+ //    }
+ //    else if (nodeID==-1)
+	// {
+	// 	nodeID=numNodesToMatlab;
+	// }
+ //    else{
+ //    for (int i = 0; i < numNodesToMatlab; ++i)
+ //    {
+ //            std::cout<< "nodeID" << nodeID <<std::endl;
         
-        mxArray * nodeField=mxGetField(toMatlab, i, "nodeID");
-        int extractedNodeID=mxGetScalar(nodeField);
-        if (nodeID == extractedNodeID)
-         {
-             std::cout<< "nodeID already exists";
-             makeNewNode = FALSE;
-             nodeIndex = i;
-         }
-    }
+ //            //BUG:: EXC BAD ACCESS here, likely because nodeField isn't being made properly.
+ //            mxArray * nodeField=mxGetField(toMatlab, i, "nodeID");
+ //            // mxArray * nodeField = mxGetFieldByNumber(toMatlab, i, 1);
+ //            std::cout<< "nodeField@" << nodeField <<std::endl;
+ //            int extractedNodeID=mxGetScalar(nodeField);
+ //            if (nodeID == extractedNodeID)
+ //            {
+ //                std::cout<< "nodeID already exists" <<std::endl;
+ //                makeNewNode = FALSE;
+ //                nodeIndex = i;
+ //            }
+ //        }
+ //    }
 
-    //Sets number of rows in toMatlab to number of nodes sending information.
-    if (makeNewNode)
-    {
-        mxSetM(toMatlab, numNodesToMatlab);
-    }
+ //    //Sets number of rows in toMatlab to number of nodes sending information.
+ //    if (makeNewNode)
+ //    {
+ //        mxSetM(toMatlab, numNodesToMatlab);
+ //    }
 
 
     // mxArray* toMatlab = mxCreateStructMatrix(numChannels, numNodesToMatlab, sizeof(fieldNames), fieldNames);
@@ -97,36 +136,122 @@ void MatlabEngineInterface::SendBufferToMatlab(AudioSampleBuffer& buffer, MidiBu
     // remember to add midibuffer support
     // Create Array for each channel
     const char* dataFieldNames[] = {"ChannelName", "BufferContents"};
-    mxArray* bufferContents = mxCreateStructMatrix(numChannels, numSamples, sizeof(dataFieldNames), dataFieldNames);
-    float * fs;
+        
+    int numberOfFields=sizeof(dataFieldNames)/sizeof(*dataFieldNames);
+    mxArray* bufferContents = mxCreateStructMatrix(numChannels, numSamples, numberOfFields, dataFieldNames);
     double * ds;
+    ds = (double*)mxMalloc(sizeof(double));
     mxArray * sample = mxCreateDoubleScalar(0);
 
     for (int i = 0; i < numChannels; ++i)
-    {
-        // Creates double vector for each channel and copies it over
-        
-
+    {        
+        // doubleArray
         for (int j =0; j < numSamples; ++j)
         {
             // Convert
-            fs = buffer.getSampleData(i, j);
-            *ds=*fs;
+            *ds=*(double*)buffer.getSampleData(i,j);
+            if (!ds) {
+                ds=0;
+            }
+            std::cout<<*ds<<"j:"<<j<<" i:"<< i<< std::endl;
             mxSetPr(sample, ds);
+            engPutVariable(ep, "ds", sample);
+
             mxSetField(bufferContents,(i*numSamples+j), "BufferContents", sample);
 
         }
-        mxSetField(toMatlab, i, "Data", bufferContents);
     }
+    
+    if (engineInitialized) {
+        // std::cout<<"engPutVariable "<<std::endl;
+        engPutVariable(ep, "fromGUI", bufferContents);
+        // engPutVariable(ep, bufferVarName.toUTF8(), bufferContents);
 
+
+//        engPutVariable(ep, bufferVarName.toUTF8(), bufferContents);
+    }
 //    mxSetField(toMatlab, nodeIndex, "BufferContents", mxArray *pvalue);
 //
 //    *mxCreateStructMatrix(numNodes, 1, int nfields, "nodeID");
-    numNodes++;
+    // numNodes++;
 }
 
 
 void MatlabEngineInterface::disconnectBufferToMatlab(AudioSampleBuffer& buffer, MidiBuffer& eventBuffer, int& nSamples, int nodeID){
     //
     numNodes--;
+}
+
+void MatlabEngineInterface::sendCommandToMatlab(String command){
+    engEvalString(ep, command.toUTF8());
+}
+
+String MatlabEngineInterface::getMatlabOut(){
+    String MatlabOutputBuffer(engOutBuffer, engOutBufferSize);
+    std::cout<<"engOutputBuffer: " << engOutBuffer <<std::endl;
+    std::cout<<"MatlabOutputBuffer: "<< MatlabOutputBuffer <<std::endl;
+
+    return MatlabOutputBuffer;
+}
+
+void MatlabEngineInterface::sendTerminalCommandToMatlab(){
+    String command=matlabTerminal->getTerminalInput();
+//    std::cout<< command.getCharPointer() <<std::endl;
+    engEvalString(ep, command.toUTF8());
+    matlabTerminal->resetTerminal();
+}
+
+
+MatlabTerminal::MatlabTerminal()
+{
+
+    labelFont = Font("Paragraph", 24, Font::plain);
+
+    // MemoryInputStream mis(BinaryData::misoserialized,
+    //                       BinaryData::misoserializedSize,
+    //                       false);
+    // Typeface::Ptr tp = new CustomTypeface(mis);
+    // labelFont = Font(tp);
+    // labelFont.setHeight(24);
+
+    infoString = "This is the Matlab Engine Console. This allows commands to be sent to the engine.";
+    terminalInput = new Label("terminalInput", "Enter MATLAB command here");
+    terminalInput->setBounds("10, parent.height - 34, parent.width -10, top + 24");
+    terminalInput->setEditable(true);
+    terminalInput->showEditor();
+    TextEditor* te=terminalInput->getCurrentTextEditor();
+    te->grabKeyboardFocus();
+
+    addAndMakeVisible(terminalInput);
+
+}
+
+MatlabTerminal::~MatlabTerminal()
+{
+
+}
+
+String MatlabTerminal::getTerminalInput(){
+    return terminalInput->getText(true);
+
+}
+
+void MatlabTerminal::resetTerminal(){
+    terminalInput->showEditor();
+    TextEditor* te=terminalInput->getCurrentTextEditor();
+    te->grabKeyboardFocus();
+    infoString=me->getMatlabOut();
+    repaint();
+}
+
+void MatlabTerminal::paint(Graphics& g)
+{
+    g.fillAll(Colours::grey);
+
+    g.setFont(labelFont);
+
+    g.setColour(Colours::black);
+
+    g.drawFittedText(infoString, 10, 10, getWidth()-10, getHeight()-10, Justification::left, 100);
+
 }

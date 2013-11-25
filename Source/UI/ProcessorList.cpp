@@ -75,6 +75,7 @@ ProcessorList::ProcessorList()
     //sinks->addSubItem(new ProcessorListItem("Arduino Output"));
     // sinks->addSubItem(new ProcessorListItem("FPGA Output"));
     sinks->addSubItem(new ProcessorListItem("Pulse Pal"));
+    sinks->addSubItem(new ProcessorListItem("Send to Matlab"));
 
     ProcessorListItem* utilities = new ProcessorListItem("Utilities");
     utilities->addSubItem(new ProcessorListItem("Splitter"));

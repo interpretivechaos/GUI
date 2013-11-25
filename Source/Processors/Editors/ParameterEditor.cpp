@@ -134,6 +134,40 @@ ParameterEditor::ParameterEditor(GenericProcessor* proc, Parameter& p, Font labe
         desiredWidth = buttonWidth*i;
         desiredHeight = 30;
     }
+    else if(p.isString())
+    {
+        std::cout << "String parameter. Creating label." << std::endl;
+        // create buttons
+        Label* label = new Label(p.getName(), p.getName());
+        labelFont.setHeight(10);
+
+        label->setColour(Label::textColourId, Colours::darkgrey);
+        label->setFont(labelFont);
+        label->setBounds(0, 0, 100, 10);
+        label->setComponentID("Label");
+        addAndMakeVisible(label);
+
+        // Array<var> possibleValues = p.getPossibleValues();
+
+        // int buttonWidth = 35;
+
+//        std::cout << "Button width: " << buttonWidth << std::endl;
+
+        // std::cout << "Default value: " << (int) p.getDefaultValue() << std::endl;
+
+        Label* plabel = new Label(p.getDefaultValue(), p.getDefaultValue());
+        plabel->setColour(Label::textColourId, Colours::green);
+        plabel->setBounds("Label.left, Label.bottom+2, left+100, top+18");
+        plabel->setName(String(p.getID()));
+        plabel->setEditable(true);
+        //buttonIdArray.add(p.getID());
+        plabel->addListener(this);
+
+        addAndMakeVisible(plabel);
+
+        desiredWidth = 100;
+        desiredHeight = 40;
+    }
 }
 
 ParameterEditor::~ParameterEditor()
@@ -247,7 +281,10 @@ void ParameterEditor::sliderValueChanged(Slider* slider)
     }
 }
 
+void ParameterEditor::labelTextChanged(Label *labelThatHasChanged)
+{
 
+}
 
 /// ============= PARAMETER BUTTON ==================
 

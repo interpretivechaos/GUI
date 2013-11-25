@@ -11,16 +11,26 @@
               companyName="Open Ephys" userNotes="The Open Ephys GUI was designed to provide a fast and flexible interface for acquiring, processing, and visualizing data from extracellular electrodes. See open-ephys.org for more information.">
   <EXPORTFORMATS>
     <XCODE_MAC targetFolder="Builds/MacOSX" vstFolder="~/SDKs/vstsdk2.4" rtasFolder="~/SDKs/PT_80_SDK"
-               juceFolder="JuceLibraryCode" extraLinkerFlags="" objCExtraSuffix="fea2mT">
+               juceFolder="JuceLibraryCode" extraLinkerFlags="-lftdi&#10;-Wl&#10;-flat_namespace&#10;-lmx&#10;-leng&#10;-undefined suppress&#10;"
+               objCExtraSuffix="fea2mT" smallIcon="zPy0mgT" bigIcon="zPy0mgT"
+               externalLibraries="/Applications/MATLAB_R2013a.app/bin/maci64&#10;/Applications/MATLAB_R2013a.app/bin/runtime/maci64"
+               extraDefs="MATLAB_MEX_FILE MX_COMPAT_64 NDEBUG">
       <CONFIGURATIONS>
         <CONFIGURATION name="Debug" isDebug="1" optimisation="3" targetName="open-ephys"
-                       osxSDK="default" osxCompatibility="default" osxArchitecture="default"/>
+                       osxSDK="default" osxCompatibility="default" osxArchitecture="Native"
+                       libraryPath="/opt/local/lib/&#10;/Applications/MATLAB_R2013a.app/bin/maci64&#10;/Applications/MATLAB_R2013a.app/bin/runtime/maci64"
+                       headerPath="/usr/local/include/Freetype2&#10;/usr/local/include&#10;/opt/local/include/&#10;/Applications/MATLAB_R2013a.app/extern/include"
+                       defines="MATLAB_MEX_FILE MX_COMPAT_64 NDEBUG" cppLibType="libc++"/>
         <CONFIGURATION name="Release" isDebug="0" optimisation="3" targetName="open-ephys"
-                       osxSDK="default" osxCompatibility="default" osxArchitecture="default"/>
+                       osxSDK="default" osxCompatibility="default" osxArchitecture="default"
+                       libraryPath="/opt/local/lib/&#10;/Applications/MATLAB_R2013a.app/bin/maci64&#10;/Applications/MATLAB_R2013a.app/bin/runtime/maci64"
+                       headerPath="/usr/local/include/Freetype2&#10;/usr/local/include&#10;/opt/local/include/&#10;/Applications/MATLAB_R2013a.app/extern/include"
+                       defines="MATLAB_MEX_FILE MX_COMPAT_64 NDEBUG"/>
       </CONFIGURATIONS>
     </XCODE_MAC>
     <LINUX_MAKE targetFolder="Builds/Linux" vstFolder="~/SDKs/vstsdk2.4" juceFolder="JuceLibraryCode"
-                extraLinkerFlags="-pg -ldl -lXext" extraCompilerFlags="-export-dynamic -g -pg">
+                extraLinkerFlags="-lftdi -pg -ldl -lXext" extraCompilerFlags="-export-dynamic -g -pg"
+                smallIcon="zPy0mgT" bigIcon="zPy0mgT">
       <CONFIGURATIONS>
         <CONFIGURATION name="Debug" isDebug="1" optimisation="3" targetName="open-ephys"
                        libraryPath="/usr/X11R6/lib/"/>
@@ -29,20 +39,17 @@
       </CONFIGURATIONS>
     </LINUX_MAKE>
     <VS2012 targetFolder="Builds/VisualStudio2012" libraryType="1" juceFolder="JuceLibraryCode/modules"
-            extraDefs="NOMINMAX" externalLibraries="setupapi.lib&#10;opengl32.lib&#10;glu32.lib&#10;">
+            extraDefs="NOMINMAX" externalLibraries="setupapi.lib&#10;opengl32.lib&#10;glu32.lib&#10;ftgl.lib&#10;libftdi.lib"
+            smallIcon="zPy0mgT" bigIcon="zPy0mgT">
       <CONFIGURATIONS>
         <CONFIGURATION name="Debug" winWarningLevel="4" generateManifest="1" winArchitecture="32-bit"
                        isDebug="1" optimisation="3" targetName="open-ephys" binaryPath="Builds\VisualStudio2012\Debug\bin"
-                       headerPath="" libraryPath="" postbuildCommand="copy ..\..\Resources\DLLs\okFrontPanel.dll .\Debug\bin"/>
+                       headerPath="..\..\windeps\include" libraryPath="..\..\windeps\lib"
+                       postbuildCommand="copy ..\..\windeps\dll\* .\Debug\bin"/>
         <CONFIGURATION name="Release" winWarningLevel="4" generateManifest="1" winArchitecture="32-bit"
                        isDebug="0" optimisation="2" targetName="open-ephys" binaryPath="Builds\VisualStudio2012\Release\bin"
-                       headerPath="" libraryPath="" postbuildCommand="copy ..\..\Resources\DLLs\okFrontPanel.dll .\Release\bin"/>
-        <CONFIGURATION name="Debug64" winWarningLevel="4" generateManifest="1" winArchitecture="x64"
-                       isDebug="1" optimisation="3" targetName="open-ephys" binaryPath="Builds\VisualStudio2012\Debug64\bin"
-                       headerPath="" libraryPath="" postbuildCommand="copy ..\..\Resources\DLLs\Win64\okFrontPanel.dll .\Debug64\bin"/>
-        <CONFIGURATION name="Release64" winWarningLevel="4" generateManifest="1" winArchitecture="x64"
-                       isDebug="0" optimisation="2" targetName="open-ephys" binaryPath="Builds\VisualStudio2012\Release64\bin"
-                       headerPath="" libraryPath="" postbuildCommand="copy ..\..\Resources\DLLs\Win64\okFrontPanel.dll .\Release64\bin"/>
+                       headerPath="..\..\windeps\include" libraryPath="..\..\windeps\lib"
+                       postbuildCommand="copy ..\..\windeps\dll\* .\Release\bin"/>
       </CONFIGURATIONS>
     </VS2012>
   </EXPORTFORMATS>
@@ -85,6 +92,8 @@
         <GROUP id="Gu1BsKu" name="Icons">
           <FILE id="Ke1Tihu" name="ArduinoIcon.png" compile="0" resource="1"
                 file="Resources/Images/Icons/ArduinoIcon.png"/>
+          <FILE id="cQrUyT" name="open_ephys_logo.png" compile="0" resource="1"
+                file="Resources/Images/Icons/open_ephys_logo.png"/>
           <FILE id="zPy0mgT" name="OpenEphysBoardLogoBlack.png" compile="0" resource="1"
                 file="Resources/Images/Icons/OpenEphysBoardLogoBlack.png"/>
           <FILE id="Swb7oDw" name="OpenEphysBoardLogoGray.png" compile="0" resource="1"
@@ -162,6 +171,11 @@
       </GROUP>
     </GROUP>
     <GROUP id="ZMfWAFj" name="Source">
+      <GROUP id="{7621356E-501C-274C-503E-F215BD8486D6}" name="Engine">
+        <FILE id="JVyl4h" name="MatlabEngine.cpp" compile="1" resource="0"
+              file="Source/Engine/MatlabEngine.cpp"/>
+        <FILE id="DhGENa" name="MatlabEngine.h" compile="1" resource="0" file="Source/Engine/MatlabEngine.h"/>
+      </GROUP>
       <FILE id="AXFRUPT" name="AccessClass.cpp" compile="1" resource="0"
             file="Source/AccessClass.cpp"/>
       <FILE id="2ViPrE" name="AccessClass.h" compile="0" resource="0" file="Source/AccessClass.h"/>
@@ -224,6 +238,10 @@
               file="Source/Audio/AudioComponent.h"/>
       </GROUP>
       <GROUP id="yQmqZWk" name="Processors">
+        <FILE id="xgeDhE" name="EngineProcessor.cpp" compile="1" resource="0"
+              file="Source/Processors/EngineProcessor.cpp"/>
+        <FILE id="PdUW4E" name="EngineProcessor.h" compile="0" resource="0"
+              file="Source/Processors/EngineProcessor.h"/>
         <FILE id="E7s1De" name="LfpTriggeredAverageNode.cpp" compile="1" resource="0"
               file="Source/Processors/LfpTriggeredAverageNode.cpp"/>
         <FILE id="MKL66o" name="LfpTriggeredAverageNode.h" compile="0" resource="0"
@@ -458,6 +476,9 @@
           <FILE id="6iEndcT" name="FPGAThread.h" compile="0" resource="0" file="Source/Processors/DataThreads/FPGAThread.h"/>
           <FILE id="Qfe0ygk" name="DataBuffer.cpp" compile="1" resource="0" file="Source/Processors/DataThreads/DataBuffer.cpp"/>
           <FILE id="VCRMcQP" name="DataBuffer.h" compile="0" resource="0" file="Source/Processors/DataThreads/DataBuffer.h"/>
+          <FILE id="yb9wXXE" name="IntanThread.cpp" compile="1" resource="0"
+                file="Source/Processors/DataThreads/IntanThread.cpp"/>
+          <FILE id="PGp9SLi" name="IntanThread.h" compile="0" resource="0" file="Source/Processors/DataThreads/IntanThread.h"/>
           <FILE id="9JbVKlA" name="DataThread.cpp" compile="1" resource="0" file="Source/Processors/DataThreads/DataThread.cpp"/>
           <FILE id="McgNvuR" name="DataThread.h" compile="0" resource="0" file="Source/Processors/DataThreads/DataThread.h"/>
         </GROUP>

@@ -63,6 +63,9 @@ namespace BinaryData
     extern const char*   ArduinoIcon_png;
     const int            ArduinoIcon_pngSize = 56888;
 
+    extern const char*   open_ephys_logo_png;
+    const int            open_ephys_logo_pngSize = 34022;
+
     extern const char*   OpenEphysBoardLogoBlack_png;
     const int            OpenEphysBoardLogoBlack_pngSize = 36120;
 

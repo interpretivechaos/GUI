@@ -24,8 +24,8 @@
 #include "UIComponent.h"
 #include <stdio.h>
 
-UIComponent::UIComponent(MainWindow* mainWindow_, ProcessorGraph* pgraph, AudioComponent* audio_)
-    : mainWindow(mainWindow_), processorGraph(pgraph), audio(audio_)
+UIComponent::UIComponent(MainWindow* mainWindow_, ProcessorGraph* pgraph, AudioComponent* audio_, MatlabEngineInterface* matlabEngineInterface_)
+    : mainWindow(mainWindow_), processorGraph(pgraph), audio(audio_), matlabEngineInterface(matlabEngineInterface_)
 
 {
 
@@ -35,7 +35,7 @@ UIComponent::UIComponent(MainWindow* mainWindow_, ProcessorGraph* pgraph, AudioC
 
     dataViewport = new DataViewport();
     addChildComponent(dataViewport);
-    dataViewport->addTabToDataViewport("Info", infoLabel,0);
+    dataViewport->addTabToDataViewport("Info", infoLabel, 0);
 
     std::cout << "Created data viewport." << std::endl;
 
@@ -235,6 +235,8 @@ PopupMenu UIComponent::getMenuForIndex(int menuIndex, const String& menuName)
     {
         menu.addCommandItem(commandManager, openConfiguration);
         menu.addCommandItem(commandManager, saveConfiguration);
+        menu.addCommandItem(commandManager, startEngine);
+        menu.addCommandItem(commandManager, sendTerminalCommand);
 
 #if !JUCE_MAC
         menu.addSeparator();
@@ -297,7 +299,9 @@ void UIComponent::getAllCommands(Array <CommandID>& commands)
                              toggleProcessorList,
                              toggleSignalChain,
                              toggleFileInfo,
-                             showHelp
+                             showHelp,
+                             startEngine,
+                             sendTerminalCommand
                             };
 
     commands.addArray(ids, numElementsInArray(ids));
@@ -321,6 +325,18 @@ void UIComponent::getCommandInfo(CommandID commandID, ApplicationCommandInfo& re
             result.setInfo("Save configuration", "Save the current processor graph.", "General", 0);
             result.addDefaultKeypress('S', ModifierKeys::commandModifier);
             result.setActive(!acquisitionStarted);
+            break;
+
+        case startEngine:
+            result.setInfo("Start MATLAB Engine", "Start the MATLAB ENGINE", "General", 0);
+            result.addDefaultKeypress('M', ModifierKeys::commandModifier);
+            result.setActive(!acquisitionStarted);
+            break;
+
+        case sendTerminalCommand:
+            result.setInfo("Execute Terminal Command", "Execute Terminal Command in MATLAB", "General", 0);
+            result.addDefaultKeypress('T', ModifierKeys::commandModifier);
+            result.setActive(!acquisitionStarted); //TODO: Set this to only be visible when terminal open
             break;
 
         case undo:
@@ -425,6 +441,24 @@ bool UIComponent::perform(const InvocationInfo& info)
                     sendActionMessage("No file chosen.");
                 }
 
+                break;
+            }
+        case startEngine:
+            {
+                matlabEngineInterface->setUIComponent(this);
+                if(matlabEngineInterface->initializeMatlabEngine())
+                {
+                    // sendActionMessage("Matlab Engine Started");
+                }
+                else
+                {
+                    // sendActionMessage("Matlab Engine Failed to Start");
+                }
+                break;
+            }
+        case sendTerminalCommand:
+            {
+                matlabEngineInterface->sendTerminalCommandToMatlab();
                 break;
             }
         case clearSignalChain:

@@ -24,13 +24,15 @@
 #include "AccessClass.h"
 
 #include "UI/UIComponent.h"
-#include "UI/EditorViewport.h"
+#include "UI/EditorViewport.h" 
 #include "UI/ProcessorList.h"
 #include "UI/DataViewport.h"
 #include "UI/ControlPanel.h"
 #include "UI/MessageCenter.h"
 #include "Audio/AudioComponent.h"
 #include "Processors/ProcessorGraph.h"
+#include "MainWindow.h"
+
 
 void AccessClass::setUIComponent(UIComponent* ui_)
 {
@@ -44,7 +46,7 @@ void AccessClass::setUIComponent(UIComponent* ui_)
     cp = ui->getControlPanel();
     mc = ui->getMessageCenter();
     ac = ui->getAudioComponent();
-
+    me = ui->getMatlabEngineInterface();
     addActionListener(mc);
 
     updateChildComponents();

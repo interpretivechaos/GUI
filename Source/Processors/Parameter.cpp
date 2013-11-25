@@ -24,11 +24,11 @@
 #include "Parameter.h"
 
 
-Parameter::Parameter(const String& name_, bool defaultVal, int ID, bool t)
+ Parameter::Parameter(const String& name_, bool defaultVal, int ID, bool t)
     : shouldDeactivateDuringAcquisition(t), name(name_), description(""),
       parameterId(ID)
 {
-
+    std::cout << "Bool: " << defaultVal << std::endl;
     defaultValue = defaultVal;
 
     possibleValues.add(true);
@@ -37,6 +37,7 @@ Parameter::Parameter(const String& name_, bool defaultVal, int ID, bool t)
     isBool = true;
     isCont = false;
     isDisc = false;
+    isStr = false;
 
 }
 
@@ -53,6 +54,7 @@ Parameter::Parameter(const String& name_, float low, float high,
     isCont = true;
     isBool = false;
     isDisc = false;
+    isStr = false;
 
 }
 
@@ -67,8 +69,23 @@ Parameter::Parameter(const String& name_, Array<var> a, int defaultVal,
     isCont = false;
     isDisc = true;
     isBool = false;
+    isStr = false;
 
 }
+
+Parameter::Parameter(const String& name_, String defaultVal, int ID, bool t)
+    : shouldDeactivateDuringAcquisition(t), name(name_), description(""),
+      parameterId(ID)
+{
+    defaultValue=defaultVal;
+
+    isCont = false;
+    isDisc = false;
+    isBool = false;
+    isStr  = true;
+
+}
+
 
 
 void Parameter::setValue(float val, int chan)
@@ -110,6 +127,21 @@ void Parameter::setValue(float val, int chan)
     }
 
 }
+
+void Parameter::setValue(String val, int chan)
+{
+
+    if (isString())
+    {
+        values.set(chan, val);
+    }
+    else
+    {
+    std::cout << "Tried to set non-String parameter with" << val << std::endl;
+    }
+
+}
+
 
 // void BooleanParameter::setValue(float val, int chan)
 // {

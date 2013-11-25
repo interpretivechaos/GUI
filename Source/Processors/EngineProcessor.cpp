@@ -30,10 +30,9 @@ EngineProcessor::EngineProcessor()
     : GenericProcessor("Send to Matlab") //, threshold(200.0), state(true)
 
 {
- 	matlabEngine=getMatlabEngine();   
-
-    //parameters.add(Parameter("thresh", 0.0, 500.0, 200.0, 0));
-
+    String defaultName("node");
+    defaultName=defaultName+String(getNodeId());
+    parameters.add(Parameter("Variable Name", defaultName, 1));
 }
 
 EngineProcessor::~EngineProcessor()
@@ -56,15 +55,26 @@ void EngineProcessor::setParameter(int parameterIndex, float newValue)
     editor->updateParameterButtons(parameterIndex);
 }
 
+bool EngineProcessor::enable()
+{
+    matlabEngine=getMatlabEngineInterface();
+
+    matlabEngine->initializeMatlabEngine();
+
+    return isEnabled;
+}
+
 void EngineProcessor::process(AudioSampleBuffer& buffer,
                                MidiBuffer& events,
                                int& nSamples)
 {
 
-    for (int i = 0; i < nSamples; i++)
-    {
-        matlabEngine->SendBufferToMatlab(buffer, events, nSamples, -1);
-    }
+    // for (int i = 0; i < nSamples; i++)
+    // {
+    //     // std::cout << "Send Buffer TO Matlab @" << matlabEngine<< std::endl;
+
+        matlabEngine->sendBufferToMatlab(buffer, getParameterVar(0,1), events, nSamples, -1);
+    // }
 
 
 }

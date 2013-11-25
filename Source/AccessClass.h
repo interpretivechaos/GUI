@@ -25,6 +25,14 @@
 #define __ACCESSCLASS_H_CE1DC2DE__
 
 #include "../JuceLibraryCode/JuceHeader.h"
+// #include "UI/UIComponent.h"
+// #include "UI/EditorViewport.h" 
+// #include "UI/ProcessorList.h"
+// #include "UI/DataViewport.h"
+// #include "UI/ControlPanel.h"
+// #include "UI/MessageCenter.h"
+// #include "Audio/AudioComponent.h"
+// #include "Processors/ProcessorGraph.h"
 
 class UIComponent;
 class EditorViewport;
@@ -34,6 +42,9 @@ class ProcessorGraph;
 class MessageCenter;
 class ControlPanel;
 class AudioComponent;
+class MainWindow;
+class MatlabEngineInterface;
+
 
 /**
 
@@ -118,6 +129,14 @@ public:
         return ac;
     }
 
+    /** Returns a pointer to the application's MatlabEngineInterface */
+    MatlabEngineInterface* getMatlabEngineInterface()
+    {
+        // std::cout << "Got the probably unspecified MatlabEngineInterface from AccessClass @." << me << std::endl;
+
+        return me;
+    }
+
 private:
 
     UIComponent* ui;
@@ -128,6 +147,7 @@ private:
     ControlPanel* cp;
     MessageCenter* mc;
     AudioComponent* ac;
+    MatlabEngineInterface* me;
 
 };
 

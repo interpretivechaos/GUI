@@ -30,6 +30,7 @@
 
 #include "../../JuceLibraryCode/JuceHeader.h"
 #include "GenericProcessor.h"
+#include "../Engine/MatlabEngine.h"
 
 /**
 
@@ -73,6 +74,10 @@ public:
         size of the buffer).
          */
     void process(AudioSampleBuffer& buffer, MidiBuffer& events, int& nSamples);
+    
+    /** Called immediately prior to the start of data acquisition, once all processors in the signal chain have indicated they are ready to process data.*/
+
+    bool enable();
 
     /** Any variables used by the "process" function _must_ be modified only through
         this method while data acquisition is active. If they are modified in any
@@ -88,7 +93,7 @@ private:
     // float threshold;
     // bool state;
 
-    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(ExampleProcessor);
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(EngineProcessor);
 
 };
 

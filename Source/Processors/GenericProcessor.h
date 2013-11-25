@@ -37,7 +37,7 @@ class EditorViewport;
 class DataViewport;
 class UIComponent;
 class GenericEditor;
-class Parameter;
+// class Parameter;
 class Channel;
 
 /**

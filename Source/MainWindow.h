@@ -28,6 +28,7 @@
 #include "UI/UIComponent.h"
 #include "Audio/AudioComponent.h"
 #include "Processors/ProcessorGraph.h"
+#include "Engine/MatlabEngine.h"
 
 /**
   The main window for the GUI application.
@@ -59,6 +60,12 @@ public:
         commands. */
     ApplicationCommandManager commandManager;
 
+    /** Returns a pointer to the ProcessorGraph. */
+    ProcessorGraph* getProcessorGraph()
+    {
+        return processorGraph;
+    }
+
 private:
 
     /** Saves the MainWindow's boundaries into the file "windowState.xml", located in the directory
@@ -74,6 +81,9 @@ private:
 
     /** A pointer to the application's ProcessorGraph (owned by the MainWindow). */
     ScopedPointer<ProcessorGraph> processorGraph;
+
+    /** A pointer to the application's ProcessorGraph (owned by the MainWindow). */
+    ScopedPointer<MatlabEngineInterface> matlabEngineInterface;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(MainWindow)
 

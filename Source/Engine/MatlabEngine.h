@@ -24,16 +24,91 @@
 #ifndef __MATLABENGINE_H_5DD33DB4__
 #define __MATLABENGINE_H_5DD33DB4__
 
-class MatlabEngine : public AccessClass
+#include "../../JuceLibraryCode/JuceHeader.h"
+#include "../AccessClass.h"
+#include "../UI/DataViewport.h"
 
+#include <engine.h>
+#include <matrix.h>
+
+class MatlabTerminal;
+
+class MatlabEngineInterface : public AccessClass
 {
 public: 
 /** Constructor */
-MatlabEngineInterface::MatlabEngineInterface();
+    MatlabEngineInterface();
 
 /** Destructor */
+    ~MatlabEngineInterface();
+
+bool initializeMatlabEngine();
+
+void sendBufferToMatlab(AudioSampleBuffer& buffer, String bufferVarName, MidiBuffer& eventBuffer, int& nSamples, int nodeID=-1);
+
+void disconnectBufferToMatlab(AudioSampleBuffer& buffer, MidiBuffer& eventBuffer, int& nSamples, int nodeID);
+
+void sendCommandToMatlab(String command);
+
+String getMatlabOut();
+
+void sendTerminalCommandToMatlab();
+
+
+
+private:
+
+    int numNodesToMatlab;
+    int numNodesFromMatlab;
+    int numNodes;
+    mxArray* toMatlab;
+    mxArray* fromMatlab;
+    Engine* ep;
+    bool engineInitialized;
+    ScopedPointer<MatlabTerminal> matlabTerminal;
+
+    const int engOutBufferSize=256;
+    char engOutBuffer[257];
+    String MatlabOutputBuffer;
+};
+
+
+class MatlabTerminal : public AccessClass, public Component
+
+{
+    public:
+    MatlabTerminal();
+    ~MatlabTerminal();
+    void setMatlabEngineInterface(MatlabEngineInterface* _me)
+    {
+         me=_me;
+    }
+
+    String getTerminalInput();
+
+    void resetTerminal();
+
+    /** Draws the MatlabTerminal.*/
+    void paint(Graphics& g);
+
+private:
+
+    /** The text displayed to the user.*/
+    String infoString;
+
+    /** Font used to draw the label.*/
+    Font labelFont;
+
+    /** Label: sends commands to matlab Engine */
+    ScopedPointer<Label> terminalInput;
+
+    /** Pointer to Matlab Engine */
+    MatlabEngineInterface* me;
+
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(MatlabTerminal);
 
 };
+
 
 
 

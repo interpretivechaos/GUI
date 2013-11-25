@@ -44,8 +44,10 @@ MainWindow::MainWindow()
     processorGraph = new ProcessorGraph();
     audioComponent = new AudioComponent();
     audioComponent->connectToProcessorGraph(processorGraph);
+    matlabEngineInterface = new MatlabEngineInterface;
+    std::cout << "Made MatlabEngineInterface." << std::endl;
 
-    setContentOwned(new UIComponent(this, processorGraph, audioComponent), true);
+    setContentOwned(new UIComponent(this, processorGraph, audioComponent, matlabEngineInterface), true);
 
     UIComponent* ui = (UIComponent*) getContentComponent();
 

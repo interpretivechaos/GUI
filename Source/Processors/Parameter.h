@@ -57,6 +57,10 @@ public:
     /** Constructor for categorical parameters.*/
     Parameter(const String& name_, Array<var> a, int defaultVal, int ID, bool t = false);
 
+    /** Constructor for String parameters.*/
+    Parameter(const String& name_, String defaultVal, int ID, bool t = false);
+
+
     /** Destructor.*/
     ~Parameter() {}
 
@@ -99,6 +103,11 @@ public:
     /** Sets the value of a parameter for a given channel.*/
     void setValue(float val, int chan);
 
+    /** Overloaded variant to set the value of a parameter for a Strings*/
+
+    void setValue(String val, int chan);
+
+
     /** Returns the value of a parameter for a given channel.*/
     var operator[](int chan)
     {
@@ -132,6 +141,12 @@ public:
         return isDisc;
     }
 
+    /** Returns true if a parameter is discrete, false otherwise.*/
+    bool isString()
+    {
+        return isStr;
+    }
+
     /** Certain parameters should not be changed while data acquisition is active.
 
          This variable indicates whether or not these parameters can be edited.*/
@@ -144,7 +159,7 @@ private:
 
     int parameterId;
 
-    bool isBool, isCont, isDisc;
+    bool isBool, isCont, isDisc, isStr;
 
     var defaultValue;
     Array<var> values;
