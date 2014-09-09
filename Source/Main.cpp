@@ -29,6 +29,7 @@
 #include "UI/CustomLookAndFeel.h"
 
 #include <stdio.h>
+#include <fstream>
 
 //------------------------------------------------------------------
 
@@ -55,8 +56,12 @@ public:
     //==============================================================================
     void initialise(const String& commandLine)
     {
+
+        std::cout << commandLine << std::endl;
+
         StringArray parameters;
         parameters.addTokens(commandLine," ","\"");
+
 #ifdef WIN32
         //glWinInit();
 
@@ -65,6 +70,10 @@ public:
             if (AllocConsole())
             {
                 freopen("CONOUT$","w",stdout);
+				freopen("CONOUT$","w",stderr);
+                console_out = std::ofstream("CONOUT$");
+                std::cout.rdbuf(console_out.rdbuf());
+				std::cerr.rdbuf(console_out.rdbuf());
                 SetConsoleTitle("Debug Console");
             }
         }
@@ -86,7 +95,7 @@ public:
     //==============================================================================
     void systemRequestedQuit()
     {
-        std::cout << "Quit requested" << std::endl;
+        //std::cout << "Quit requested" << std::endl;
         quit();
     }
 
@@ -109,6 +118,7 @@ public:
 private:
     ScopedPointer <MainWindow> mainWindow;
     ScopedPointer <CustomLookAndFeel> customLookAndFeel;
+    std::ofstream console_out;
 };
 
 //==============================================================================

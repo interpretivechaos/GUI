@@ -102,15 +102,15 @@ public:
     /** Creates a new data directory in the location specified by the fileNameComponent.
     */
     void createNewDirectory();
-    
+
     /** Creates a new data file for each channel.
      */
     void createNewFiles();
-    
+
     /** Creates a new data file for each channel.
      */
     void appendTrialNumber(bool);
-    
+
     void updateTrialNumber();
 
     File getDataDirectory()
@@ -122,11 +122,15 @@ public:
     bool newDirectoryNeeded;
 
     bool isRecording;
+    bool allFilesOpened;
 
     /** Generate a Matlab-compatible datestring */
     String generateDateString();
-    
-    CriticalSection* getLock() {return &diskWriteLock;}
+
+    CriticalSection* getLock()
+    {
+        return &diskWriteLock;
+    }
 
 
 private:
@@ -204,7 +208,7 @@ private:
 
     /** Method for writing continuous buffers to disk.
     */
-    void writeContinuousBuffer(float* data, int nSamples, int channel);
+    void writeContinuousBuffer(const float* data, int nSamples, int channel);
 
     /** Method for writing event buffers to disk.
     */
@@ -215,9 +219,9 @@ private:
 
     /** Used to indicate the end of each record */
     char* recordMarker;
-    
+
     CriticalSection diskWriteLock;
-    
+
     bool appendTrialNum;
     int trialNum;
 

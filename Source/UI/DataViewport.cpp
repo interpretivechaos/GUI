@@ -27,7 +27,7 @@
 
 DataViewport::DataViewport() :
     TabbedComponent(TabbedButtonBar::TabsAtRight),
-    tabDepth(32), shutdown(false)
+    tabDepth(32), shutdown(false), tabIndex(0)
 {
 
     tabArray.clear();
@@ -41,7 +41,6 @@ DataViewport::DataViewport() :
     setColour(TabbedComponent::backgroundColourId,
               Colours::darkgrey);
 
-
 }
 
 DataViewport::~DataViewport()
@@ -52,10 +51,11 @@ DataViewport::~DataViewport()
 int DataViewport::addTabToDataViewport(String name, Component* component, GenericEditor* editor)
 {
 
-    if (tabArray.size() == 0){
+    if (tabArray.size() == 0)
         setVisible(true);
-    }
-    int tabIndex = getTabbedButtonBar().getNumTabs();
+
+    //int tabIndex = getTabbedButtonBar().getNumTabs();
+    tabIndex++;
 
     // Viewport* viewport = new Viewport();
     // viewport->setViewedComponent(component, false);
@@ -73,6 +73,10 @@ int DataViewport::addTabToDataViewport(String name, Component* component, Generi
     tabArray.add(tabIndex);
 
     editorArray.add(editor);
+
+    //  std::cout << "Adding tab with index " << tabIndex << std::endl;
+
+    setCurrentTabIndex(tabArray.size()-1);
 
     return tabIndex;
 
@@ -100,7 +104,7 @@ void DataViewport::destroyTab(int index)
     if (tabArray.size() == 0)
         setVisible(false);
 
-    setCurrentTabIndex(0);
+    setCurrentTabIndex(tabArray.size()-1);
 
 }
 

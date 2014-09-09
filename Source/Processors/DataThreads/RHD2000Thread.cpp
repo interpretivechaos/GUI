@@ -51,33 +51,33 @@ RHD2000Thread::RHD2000Thread(SourceNode* sn) : DataThread(sn),
     boardSampleRate(30000.0f),
     savedSampleRateIndex(16),
     cableLengthPortA(0.914f), cableLengthPortB(0.914f), cableLengthPortC(0.914f), cableLengthPortD(0.914f), // default is 3 feet (0.914 m),
-    audioOutputL(-1), audioOutputR(-1) 
+    audioOutputL(-1), audioOutputR(-1)
 {
     evalBoard = new Rhd2000EvalBoard;
     dataBlock = new Rhd2000DataBlock(1);
     dataBuffer = new DataBuffer(2, 10000); // start with 2 channels and automatically resize
 
     // Open Opal Kelly XEM6010 board.
-	// Returns 1 if successful, -1 if FrontPanel cannot be loaded, and -2 if XEM6010 can't be found.
+    // Returns 1 if successful, -1 if FrontPanel cannot be loaded, and -2 if XEM6010 can't be found.
     File executable = File::getSpecialLocation(File::currentExecutableFile);
 
-    #if defined(__APPLE__)
-        const String executableDirectory =
-            executable.getParentDirectory().getParentDirectory().getParentDirectory().getParentDirectory().getFullPathName();
-    #else
-	   const String executableDirectory = executable.getParentDirectory().getFullPathName();
-    
+#if defined(__APPLE__)
+    const String executableDirectory =
+        executable.getParentDirectory().getParentDirectory().getParentDirectory().getParentDirectory().getFullPathName();
+#else
+    const String executableDirectory = executable.getParentDirectory().getFullPathName();
 
-    #endif
-    
+
+#endif
+
     std::cout << executableDirectory << std::endl;
-    
 
-	String dirName = executableDirectory;
+
+    String dirName = executableDirectory;
     libraryFilePath = dirName;
-	libraryFilePath += File::separatorString;
-	libraryFilePath += okLIB_NAME;
-    
+    libraryFilePath += File::separatorString;
+    libraryFilePath += okLIB_NAME;
+
     if (openBoard(libraryFilePath))
     {
 
@@ -86,7 +86,7 @@ RHD2000Thread::RHD2000Thread(SourceNode* sn) : DataThread(sn),
 
         // automatically find connected headstages
         scanPorts(); // things would appear to run more smoothly if this were done after the editor has been created
-    
+
         if (0)
         {
             evalBoard->setContinuousRunMode(true);
@@ -108,8 +108,13 @@ RHD2000Thread::~RHD2000Thread()
         evalBoard->setLedDisplay(ledArray);
     }
 
-	if (deviceFound)
-		evalBoard->resetFpga();
+    if (deviceFound)
+    {
+        evalBoard->flush();
+        evalBoard->resetBoard();
+        evalBoard->resetFpga();
+    }
+
 
     deleteAndZero(dataBlock);
 
@@ -125,17 +130,17 @@ bool RHD2000Thread::openBoard(String pathToLibrary)
     }
     else if (return_code == -1) // dynamic library not found
     {
-        bool response = AlertWindow::showOkCancelBox (AlertWindow::NoIcon,
-                                   "Opal Kelly library not found.",
-                                    "The Opal Kelly library file was not found in the directory of the executable. Would you like to browse for it?",
-                                     "Yes", "No", 0, 0);
+        bool response = AlertWindow::showOkCancelBox(AlertWindow::NoIcon,
+                                                     "Opal Kelly library not found.",
+                                                     "The Opal Kelly library file was not found in the directory of the executable. Would you like to browse for it?",
+                                                     "Yes", "No", 0, 0);
         if (response)
         {
             // browse for file
             FileChooser fc("Select the library file...",
-                               File::getCurrentWorkingDirectory(),
-                               okLIB_EXTENSION,
-                               true);
+                           File::getCurrentWorkingDirectory(),
+                           okLIB_EXTENSION,
+                           true);
 
             if (fc.browseForFileToOpen())
             {
@@ -149,20 +154,25 @@ bool RHD2000Thread::openBoard(String pathToLibrary)
                 deviceFound = false;
             }
 
-        } else {
+        }
+        else
+        {
             deviceFound = false;
         }
-    } else if (return_code == -2) // board could not be opened
+    }
+    else if (return_code == -2)   // board could not be opened
     {
-        bool response = AlertWindow::showOkCancelBox (AlertWindow::NoIcon,
-                                   "Acquisition board not found.",
-                                    "An acquisition board could not be found. Please connect one now.",
-                                     "OK", "Cancel", 0, 0);
-    
+        bool response = AlertWindow::showOkCancelBox(AlertWindow::NoIcon,
+                                                     "Acquisition board not found.",
+                                                     "An acquisition board could not be found. Please connect one now.",
+                                                     "OK", "Cancel", 0, 0);
+
         if (response)
         {
             openBoard(libraryFilePath.getCharPointer()); // call recursively
-        } else {
+        }
+        else
+        {
             deviceFound = false;
         }
 
@@ -174,24 +184,24 @@ bool RHD2000Thread::openBoard(String pathToLibrary)
 
 bool RHD2000Thread::uploadBitfile(String bitfilename)
 {
-    
+
     deviceFound = true;
-    
+
     if (!evalBoard->uploadFpgaBitfile(bitfilename.toStdString()))
     {
         std::cout << "Couldn't upload bitfile from " << bitfilename << std::endl;
-        
-        bool response = AlertWindow::showOkCancelBox (AlertWindow::NoIcon,
-                                   "FPGA bitfile not found.",
-                                    "The rhd2000.bit file was not found in the directory of the executable. Would you like to browse for it?",
-                                     "Yes", "No", 0, 0);
+
+        bool response = AlertWindow::showOkCancelBox(AlertWindow::NoIcon,
+                                                     "FPGA bitfile not found.",
+                                                     "The rhd2000.bit file was not found in the directory of the executable. Would you like to browse for it?",
+                                                     "Yes", "No", 0, 0);
         if (response)
         {
             // browse for file
             FileChooser fc("Select the FPGA bitfile...",
-                               File::getCurrentWorkingDirectory(),
-                               "*.bit",
-                               true);
+                           File::getCurrentWorkingDirectory(),
+                           "*.bit",
+                           true);
 
             if (fc.browseForFileToOpen())
             {
@@ -204,12 +214,14 @@ bool RHD2000Thread::uploadBitfile(String bitfilename)
                 deviceFound = false;
             }
 
-        } else {
+        }
+        else
+        {
             deviceFound = false;
         }
 
     }
-    
+
     return deviceFound;
 
 }
@@ -218,18 +230,18 @@ void RHD2000Thread::initializeBoard()
 {
     String bitfilename;
 
-	File executable = File::getSpecialLocation(File::currentExecutableFile);
+    File executable = File::getSpecialLocation(File::currentExecutableFile);
 
-    #if defined(__APPLE__)
-    const String executableDirectory = 
-            executable.getParentDirectory().getParentDirectory().getParentDirectory().getParentDirectory().getFullPathName();
-    #else
-       const String executableDirectory = executable.getParentDirectory().getFullPathName();
-    #endif
+#if defined(__APPLE__)
+    const String executableDirectory =
+        executable.getParentDirectory().getParentDirectory().getParentDirectory().getParentDirectory().getFullPathName();
+#else
+    const String executableDirectory = executable.getParentDirectory().getFullPathName();
+#endif
 
-	bitfilename = executableDirectory;
-	bitfilename += File::separatorString;
-	bitfilename += "rhd2000.bit";
+    bitfilename = executableDirectory;
+    bitfilename += File::separatorString;
+    bitfilename += "rhd2000.bit";
 
     if (!uploadBitfile(bitfilename))
     {
@@ -271,12 +283,14 @@ void RHD2000Thread::initializeBoard()
         ;
     }
 
+
     // Read the resulting single data block from the USB interface. We don't
     // need to do anything with this, since it was only used for ADC calibration
     Rhd2000DataBlock* dataBlock = new Rhd2000DataBlock(evalBoard->getNumEnabledDataStreams());
 
 
-    evalBoard->readDataBlock(dataBlock);
+
+    // evalBoard->readDataBlock(dataBlock);
 
     // Now that ADC calibration has been performed, we switch to the command sequence
     // that does not execute ADC calibration.
@@ -300,10 +314,10 @@ void RHD2000Thread::initializeBoard()
 
 void RHD2000Thread::scanPorts()
 {
-	if (!deviceFound) //Safety to avoid crashes if board not present
-	{
-		return;
-	}
+    if (!deviceFound) //Safety to avoid crashes if board not present
+    {
+        return;
+    }
     // Scan SPI ports
 
     int delay, stream, id;
@@ -656,7 +670,7 @@ int RHD2000Thread::setNoiseSlicerLevel(int level)
     // Level has been checked once before this and then is checked again in setAudioNoiseSuppress.
     // This may be overkill - maybe API should change so that the final function returns the value?
     actualNoiseSlicerLevel = level;
-    
+
     return actualNoiseSlicerLevel;
 }
 
@@ -862,10 +876,10 @@ void RHD2000Thread::setSampleRate(int sampleRateIndex, bool isTemporary)
 void RHD2000Thread::updateRegisters()
 {
 
-	if (!deviceFound) //Safety to avoid crashes loading a chain with Rythm node withouth a board
-	{
-		return;
-	}
+    if (!deviceFound) //Safety to avoid crashes loading a chain with Rythm node withouth a board
+    {
+        return;
+    }
     // Set up an RHD2000 register object using this sample rate to
     // optimize MUX-related register settings.
     chipRegisters.defineSampleRate(boardSampleRate);
@@ -981,13 +995,13 @@ bool RHD2000Thread::startAcquisition()
 
     //std::cout << "Setting max timestep." << std::endl;
     //evalBoard->setMaxTimeStep(100);
-    
+
 
     std::cout << "Starting acquisition." << std::endl;
     if (1)
     {
-       // evalBoard->setContinuousRunMode(false);
-      //  evalBoard->setMaxTimeStep(0);
+        // evalBoard->setContinuousRunMode(false);
+        //  evalBoard->setMaxTimeStep(0);
         std::cout << "Flushing FIFO." << std::endl;
         evalBoard->flush();
         evalBoard->setContinuousRunMode(true);
@@ -1025,27 +1039,29 @@ bool RHD2000Thread::stopAcquisition()
         std::cout << "Thread failed to exit, continuing anyway..." << std::endl;
     }
 
-    if (1)
+    if (deviceFound)
     {
         evalBoard->setContinuousRunMode(false);
         evalBoard->setMaxTimeStep(0);
         std::cout << "Flushing FIFO." << std::endl;
         evalBoard->flush();
-     //   evalBoard->setContinuousRunMode(true);
-     //   evalBoard->run();
+        //   evalBoard->setContinuousRunMode(true);
+        //   evalBoard->run();
 
     }
 
     dataBuffer->clear();
 
-    cout << "Number of 16-bit words in FIFO: " << evalBoard->numWordsInFifo() << endl;
+    if (deviceFound)
+    {
+        cout << "Number of 16-bit words in FIFO: " << evalBoard->numWordsInFifo() << endl;
 
-   // std::cout << "Stopped eval board." << std::endl;
+        // std::cout << "Stopped eval board." << std::endl;
 
 
-    int ledArray[8] = {1, 0, 0, 0, 0, 0, 0, 0};
-    evalBoard->setLedDisplay(ledArray);
-
+        int ledArray[8] = {1, 0, 0, 0, 0, 0, 0, 0};
+        evalBoard->setLedDisplay(ledArray);
+    }
     isTransmitting = false;
 
     return true;
@@ -1077,9 +1093,9 @@ bool RHD2000Thread::updateBuffer()
 
                     for (int chan = 0; chan < numChannelsPerDataStream[dataStream]; chan++)
                     {
-                        
-                      //  std::cout << "reading sample stream " << streamNumber << " chan " << chan << " sample "<< samp << std::endl;
-                        
+
+                        //  std::cout << "reading sample stream " << streamNumber << " chan " << chan << " sample "<< samp << std::endl;
+
                         channel++;
 
                         int value = dataBlock->amplifierData[streamNumber][chan][samp];
@@ -1103,19 +1119,19 @@ bool RHD2000Thread::updateBuffer()
                     if (samp % 4 == 1)   // every 4th sample should have auxiliary input data
                     {
 
-                       // std::cout << "reading sample stream " << streamNumber << " aux ADCs " << std::endl;
+                        // std::cout << "reading sample stream " << streamNumber << " aux ADCs " << std::endl;
 
                         channel++;
                         thisSample[channel] = 0.0374 *
                                               float(dataBlock->auxiliaryData[streamNumber][1][samp+0] - 45000.0f) ;
-                                              // constant offset keeps the values visible in the LFP Viewer
+                        // constant offset keeps the values visible in the LFP Viewer
 
                         auxBuffer[channel] = thisSample[channel];
 
                         channel++;
                         thisSample[channel] = 0.0374 *
                                               float(dataBlock->auxiliaryData[streamNumber][1][samp+1] - 45000.0f) ;
-                                              // constant offset keeps the values visible in the LFP Viewer
+                        // constant offset keeps the values visible in the LFP Viewer
 
                         auxBuffer[channel] = thisSample[channel];
 
@@ -1123,7 +1139,7 @@ bool RHD2000Thread::updateBuffer()
                         channel++;
                         thisSample[channel] = 0.0374 *
                                               float(dataBlock->auxiliaryData[streamNumber][1][samp+2] - 45000.0f) ;
-                                              // constant offset keeps the values visible in the LFP Viewer
+                        // constant offset keeps the values visible in the LFP Viewer
 
                         auxBuffer[channel] = thisSample[channel];
 

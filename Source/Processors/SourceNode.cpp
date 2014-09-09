@@ -43,7 +43,7 @@ SourceNode::SourceNode(const String& name_)
 
     if (getName().equalsIgnoreCase("RHA2000-EVAL"))
     {
-       // dataThread = new IntanThread(this);
+        // dataThread = new IntanThread(this);
     }
     else if (getName().equalsIgnoreCase("Custom FPGA"))
     {
@@ -331,7 +331,7 @@ void SourceNode::process(AudioSampleBuffer& buffer,
 
     nSamples = inputBuffer->readAllFromBuffer(buffer, &timestamp, eventCodeBuffer, buffer.getNumSamples());
 
-    //std::cout << *buffer.getSampleData(0) << std::endl;
+    //std::cout << *buffer.getReadPointer(0) << std::endl;
 
     //std::cout << "Source node timestamp: " << timestamp << std::endl;
 
@@ -417,7 +417,7 @@ void SourceNode::saveCustomParametersToXml(XmlElement* parentElement)
         FileReaderThread* thread = (FileReaderThread*) dataThread.get();
         childNode->setAttribute("path", thread->getFile());
 
-    } 
+    }
 
 }
 
@@ -436,7 +436,7 @@ void SourceNode::loadCustomParametersFromXml()
                 FileReaderEditor* fre = (FileReaderEditor*) getEditor();
                 fre->setFile(filepath);
 
-            } 
+            }
         }
     }
 

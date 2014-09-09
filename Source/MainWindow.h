@@ -60,11 +60,16 @@ public:
         commands. */
     ApplicationCommandManager commandManager;
 
+
     /** Returns a pointer to the ProcessorGraph. */
     ProcessorGraph* getProcessorGraph()
     {
         return processorGraph;
     }
+
+    /** Determines whether the last used configuration reloads upon startup. */
+    bool shouldReloadOnStartup;
+
 
 private:
 

@@ -78,7 +78,7 @@ public:
 
     /** Returns the buffer size (in samples) currently being used.*/
     int getBufferSize();
-    
+
     /** Returns the buffer size (in ms) currently being used.*/
     int getBufferSizeMs();
 
@@ -91,7 +91,7 @@ private:
 
     bool isPlaying;
 
-    AudioProcessorPlayer* graphPlayer;
+    ScopedPointer<AudioProcessorPlayer> graphPlayer;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(AudioComponent);
 

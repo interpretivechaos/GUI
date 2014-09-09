@@ -23,9 +23,8 @@
 
 #include "EditorViewport.h"
 
-
-
 #include "SignalChainManager.h"
+#include "GraphViewer.h"
 #include "EditorViewportButtons.h"
 
 EditorViewport::EditorViewport()
@@ -67,6 +66,14 @@ EditorViewport::EditorViewport()
     addAndMakeVisible(downButton);
     addAndMakeVisible(rightButton);
     addAndMakeVisible(leftButton);
+
+    currentId = 100;
+    maxId = 100;
+
+    editorNamingLabel.setEditable(true);
+    editorNamingLabel.setBounds(0,0,100,20);
+    editorNamingLabel.setColour(Label::textColourId, Colours::white);
+    editorNamingLabel.addListener(this);
 
 }
 
@@ -114,14 +121,14 @@ void EditorViewport::paint(Graphics& g)
         float insertionX = (float)(borderSize) * 2.5 + (float) tabSize;
 
         int n;
-        for (n = 0; n < insertionPoint; n++)
+        for (n = leftmostEditor; n < insertionPoint; n++)
         {
             insertionX += editorArray[n]->getWidth();
 
         }
 
-        if (n > 1)
-            insertionX += borderSize*(n-1);
+        if (n - leftmostEditor > 1)
+            insertionX += borderSize*(n-leftmostEditor-1);
 
         g.setColour(Colours::yellow);
         g.drawLine(insertionX, (float) borderSize,
@@ -132,13 +139,18 @@ void EditorViewport::paint(Graphics& g)
     int insertionX = tabSize + borderSize;
     g.setColour(Colours::darkgrey);
 
-    int x = insertionX + 19;
+    int x = insertionX + 15;
     int y = borderSize + 2;
     //int w = 30;
-    //int h = getHeight() - 2*(borderSize+2);
+    //int h = getHeight() - 2*(borderSize+2);get
 
+    //if (editorArray.size() > 0)
+    //{
+    //if (!editorArray[0]->getProcessor()->isSource())
+    //    g.drawImageAt(sourceDropImage, x, y);
+    //} else {
     g.drawImageAt(sourceDropImage, x, y);
-
+    //}
 }
 
 bool EditorViewport::isInterestedInDragSource(const SourceDetails& dragSourceDetails)
@@ -147,10 +159,10 @@ bool EditorViewport::isInterestedInDragSource(const SourceDetails& dragSourceDet
     {
         return false;
     }
-	else if (dragSourceDetails.description.toString().startsWith("EditorDrag"))
-	{
-		return false;
-	}
+    else if (dragSourceDetails.description.toString().startsWith("EditorDrag"))
+    {
+        return false;
+    }
     else
     {
         return true;
@@ -181,7 +193,7 @@ void EditorViewport::itemDragMove(const SourceDetails& dragSourceDetails)
         int leftEdge;
         int centerPoint;
 
-        for (int n = 0; n < editorArray.size(); n++)
+        for (int n = leftmostEditor; n < editorArray.size(); n++)
         {
             leftEdge = editorArray[n]->getX();
             centerPoint = leftEdge + (editorArray[n]->getWidth())/2;
@@ -231,9 +243,9 @@ void EditorViewport::itemDropped(const SourceDetails& dragSourceDetails)
         /// needed to remove const cast --> should be a better way to do this
         //String description = sourceDescription.substring(0);
 
-        GenericEditor* activeEditor = (GenericEditor*) getProcessorGraph()->createNewProcessor(description);//, source, dest);
+        GenericEditor* activeEditor = (GenericEditor*) getProcessorGraph()->createNewProcessor(description, currentId);//, source, dest);
 
-        std::cout << "Active editor: " << activeEditor << std::endl;
+        //std::cout << "Active editor: " << activeEditor << std::endl;
 
         if (activeEditor != 0)
         {
@@ -261,17 +273,26 @@ void EditorViewport::itemDropped(const SourceDetails& dragSourceDetails)
 
         somethingIsBeingDraggedOver = false;
 
+        getGraphViewer()->addNode(activeEditor);
+
         repaint();
+
+        currentId++;
+
     }
 }
 
 void EditorViewport::clearSignalChain()
 {
+
     if (canEdit)
     {
+        editorArray.clear();
+        //const MessageManagerLock mmLock; // prevent redraw while deleting
         std::cout << "Clearing signal chain." << std::endl;
         signalChainManager->clearSignalChain();
         getProcessorGraph()->clearSignalChain();
+        getGraphViewer()->removeAllNodes();
 
     }
     else
@@ -305,6 +326,18 @@ void EditorViewport::makeEditorVisible(GenericEditor* editor, bool highlight, bo
     if (highlight)
         editor->highlight();
 
+    while (!editor->isVisible())
+    {
+        if (leftmostEditor < editorArray.indexOf(editor))
+            leftmostEditor++;
+        else
+            leftmostEditor--;
+
+        refreshEditors();
+    }
+
+    repaint();
+
 }
 
 void EditorViewport::deleteNode(GenericEditor* editor)
@@ -316,6 +349,7 @@ void EditorViewport::deleteNode(GenericEditor* editor)
         editor->setVisible(false);
 
         signalChainManager->updateVisibleEditors(editor, indexOfMovingComponent, insertionPoint, REMOVE);
+        getGraphViewer()->removeNode(editor);
 
         refreshEditors();
 
@@ -325,6 +359,10 @@ void EditorViewport::deleteNode(GenericEditor* editor)
         indexOfMovingComponent = -1;
 
         somethingIsBeingDraggedOver = false;
+
+
+
+        repaint();
 
     }
 }
@@ -638,6 +676,12 @@ void EditorViewport::selectEditor(GenericEditor* editor)
     }
 }
 
+void EditorViewport::labelTextChanged(Label* label)
+{
+
+    editorToUpdate->setDisplayName(label->getText());
+}
+
 void EditorViewport::mouseDown(const MouseEvent& e)
 {
 
@@ -649,12 +693,85 @@ void EditorViewport::mouseDown(const MouseEvent& e)
     for (int i = 0; i < editorArray.size(); i++)
     {
 
-        if (e.eventComponent == editorArray[i] && e.y < 22)
-            // event must take place along title bar
+        if (e.eventComponent == editorArray[i])
+
             // || e.eventComponent->getParentComponent() == editorArray[i] ||
             //    e.eventComponent->getParentComponent()->getParentComponent() ==
             //            editorArray[i])
         {
+
+            if (e.getNumberOfClicks() == 2) // double-clicks toggle collapse state
+            {
+                if (editorArray[i]->getCollapsedState())
+                {
+                    editorArray[i]->switchCollapsedState();
+                }
+                else
+                {
+                    if (e.y < 22)
+                    {
+                        editorArray[i]->switchCollapsedState();
+                    }
+                }
+                return;
+            }
+
+            if (e.mods.isRightButtonDown())
+            {
+
+                if (!editorArray[i]->getCollapsedState() && e.y > 22)
+                    return;
+
+                if (editorArray[i]->isMerger() || editorArray[i]->isSplitter())
+                    return;
+
+                PopupMenu m;
+
+                if (editorArray[i]->getCollapsedState())
+                    m.addItem(3, "Uncollapse", true);
+                else
+                    m.addItem(3, "Collapse", true);
+
+                if (canEdit)
+                    m.addItem(2, "Delete", true);
+                else
+                    m.addItem(2, "Delete", false);
+
+                m.addItem(1, "Rename", true);
+
+                const int result = m.show();
+
+                if (result == 1)
+                {
+                    editorNamingLabel.setText("", dontSendNotification);
+
+                    juce::Rectangle<int> rect1 = juce::Rectangle<int>(editorArray[i]->getScreenX()+20,editorArray[i]->getScreenY()+11,1,1);
+
+                    CallOutBox callOut(editorNamingLabel, rect1, nullptr);
+                    editorToUpdate = editorArray[i];
+                    callOut.runModalLoop();
+                    // editorNamingLabel.showEditor();
+                    //CallOutBox& myBox = CallOutBox::launchAsynchronously(&editorNamingLabel, rect1, nullptr);
+
+                    return;
+
+                }
+                else if (result == 2)
+                {
+                    deleteNode(editorArray[i]);
+                    return;
+                }
+                else if (result == 3)
+                {
+                    editorArray[i]->switchCollapsedState();
+                    refreshEditors();
+                    return;
+                }
+            }
+
+            // make sure uncollapsed editors don't accept clicks outside their title bar
+            if (!editorArray[i]->getCollapsedState() && e.y > 22)
+                return;
 
             clickInEditor = true;
             editorArray[i]->select();
@@ -1129,6 +1246,9 @@ const String EditorViewport::saveState(File fileToUse)
 
     XmlElement* info = xml->createNewChildElement("INFO");
 
+    XmlElement* version = info->createNewChildElement("VERSION");
+    version->addTextElement(JUCEApplication::getInstance()->getApplicationVersion());
+
     Time currentTime = Time::getCurrentTime();
 
     XmlElement* date = info->createNewChildElement("DATE");
@@ -1190,7 +1310,7 @@ const String EditorViewport::saveState(File fileToUse)
 
                 editor = (GenericEditor*) nextProcessor->getEditor();
 
-                if ((nextProcessor->isSplitter() || nextProcessor->isMerger())
+                if ((nextProcessor->isSplitter())// || nextProcessor->isMerger())
                     && nextProcessor->saveOrder < 0)
                 {
                     splitPoints.add(nextProcessor);
@@ -1256,6 +1376,7 @@ const String EditorViewport::saveState(File fileToUse)
     }
 
     getControlPanel()->saveStateToXml(xml); // save the control panel settings
+    getProcessorList()->saveStateToXml(xml);
     getUIComponent()->saveStateToXml(xml);  // save the UI settings
 
     if (! xml->writeToFile(currentFile, String::empty))
@@ -1286,7 +1407,7 @@ const String EditorViewport::loadState(File fileToLoad)
     // {
     //     return "No configuration selected.";
     // }
-
+    int maxID = 100;
     currentFile = fileToLoad;
 
     std::cout << "Loading processor graph." << std::endl;
@@ -1303,6 +1424,53 @@ const String EditorViewport::loadState(File fileToLoad)
         return "Not a valid file.";
     }
 
+    bool sameVersion = false;
+    String versionString;
+
+    forEachXmlChildElement(*xml, element)
+    {
+        if (element->hasTagName("INFO"))
+        {
+            forEachXmlChildElement(*element, element2)
+            {
+                if (element2->hasTagName("VERSION"))
+                {
+                    versionString = element2->getAllSubText();
+                    // float majorVersion = versionString.upToFirstOccurrenceOf(".", false, true).getIntValue();
+                    //             float minorVersion = versionString.fromFirstOccurrenceOf(".", false, true).getFloatValue();
+
+                    if (versionString.equalsIgnoreCase(JUCEApplication::getInstance()->getApplicationVersion()))
+                        sameVersion = true;
+                }
+            }
+            break;
+        }
+    }
+    if (!sameVersion)
+    {
+        String responseString = "Your configuration file was saved from a different version of the GUI than the one you're using. \n";
+        responseString += "The current software is version ";
+        responseString += JUCEApplication::getInstance()->getApplicationVersion();
+        responseString += ", but the file you selected ";
+        if (versionString.length() > 0)
+        {
+            responseString += " is version ";
+            responseString += versionString;
+        }
+        else
+        {
+            responseString += "does not have a version number";
+        }
+
+        responseString += ".\n This file may not load properly. Continue?";
+
+        bool response = AlertWindow::showOkCancelBox(AlertWindow::NoIcon,
+                                                     "Version mismatch", responseString,
+                                                     "Yes", "No", 0, 0);
+        if (!response)
+            return "Failed To Open " + fileToLoad.getFileName();
+
+    }
     clearSignalChain();
 
     String description;// = " ";
@@ -1316,80 +1484,89 @@ const String EditorViewport::loadState(File fileToLoad)
         if (element->hasTagName("SIGNALCHAIN"))
         {
 
-        forEachXmlChildElement(*element, processor)
-        {
-
-            if (processor->hasTagName("PROCESSOR"))
+            forEachXmlChildElement(*element, processor)
             {
 
-                int insertionPt = processor->getIntAttribute("insertionPoint");
-
-                if (insertionPt == 1)
+                if (processor->hasTagName("PROCESSOR"))
                 {
-                    insertionPoint = editorArray.size();
+
+                    int insertionPt = processor->getIntAttribute("insertionPoint");
+                    currentId = processor->getIntAttribute("NodeId");
+
+                    maxID= (maxID > currentId) ? maxID  : currentId ;
+
+                    if (insertionPt == 1)
+                    {
+                        insertionPoint = editorArray.size();
+                    }
+                    else
+                    {
+                        insertionPoint = 0;
+                    }
+
+                    //Point<int> pt =
+                    SourceDetails sd = SourceDetails(processor->getStringAttribute("name"),
+                                                     0,
+                                                     Point<int>(0,0));
+
+                    itemDropped(sd);
+
+                    p = (GenericProcessor*) lastEditor->getProcessor();
+                    p->loadOrder = loadOrder;
+                    p->parametersAsXml = processor;
+
+                    //Sets parameters based on XML files
+                    setParametersByXML(p, processor);
+                    loadOrder++;
+
+                    if (p->isSplitter() || p->isMerger())
+                    {
+                        splitPoints.add(p);
+                    }
+
+                    signalChainManager->updateVisibleEditors(editorArray[0], 0, 0, UPDATE);
+
                 }
-                else
+                else if (processor->hasTagName("SWITCH"))
                 {
-                    insertionPoint = 0;
-                }
+                    int processorNum = processor->getIntAttribute("number");
 
-                //Point<int> pt =
-                SourceDetails sd = SourceDetails(processor->getStringAttribute("name"),
-                                                 0,
-                                                 Point<int>(0,0));
+                    std::cout << "SWITCHING number " << processorNum << std::endl;
 
-                itemDropped(sd);
-
-                p = (GenericProcessor*) lastEditor->getProcessor();
-                p->loadOrder = loadOrder;
-                p->parametersAsXml = processor;
-                //Sets parameters based on XML files
-                setParametersByXML(p, processor);
-                loadOrder++;
-
-                if (p->isSplitter() || p->isMerger())
-                {
-                    splitPoints.add(p);
-                }
-
-            }
-            else if (processor->hasTagName("SWITCH"))
-            {
-                int processorNum = processor->getIntAttribute("number");
-
-                std::cout << "SWITCHING number " << processorNum << std::endl;
-
-                for (int n = 0; n < splitPoints.size(); n++)
-                {
-
-                    std::cout << "Trying split point " << n
-                              << ", load order: " << splitPoints[n]->loadOrder << std::endl;
-
-                    if (splitPoints[n]->loadOrder == processorNum)
+                    for (int n = 0; n < splitPoints.size(); n++)
                     {
 
-                        if (splitPoints[n]->isMerger())
-                        {
-                            std::cout << "Switching merger source." << std::endl;
-                            MergerEditor* editor = (MergerEditor*) splitPoints[n]->getEditor();
-                            editor->switchSource(1);
-                        }
-                        else
-                        {
-                            std::cout << "Switching splitter destination." << std::endl;
-                            SplitterEditor* editor = (SplitterEditor*) splitPoints[n]->getEditor();
-                            editor->switchDest(1);
-                        }
+                        std::cout << "Trying split point " << n
+                                  << ", load order: " << splitPoints[n]->loadOrder << std::endl;
 
-                        splitPoints.remove(n);
+                        if (splitPoints[n]->loadOrder == processorNum)
+                        {
+
+                            if (splitPoints[n]->isMerger())
+                            {
+                                std::cout << "Switching merger source." << std::endl;
+                                MergerEditor* editor = (MergerEditor*) splitPoints[n]->getEditor();
+                                editor->switchSource(1);
+                            }
+                            else
+                            {
+                                std::cout << "Switching splitter destination." << std::endl;
+                                SplitterEditor* editor = (SplitterEditor*) splitPoints[n]->getEditor();
+                                editor->switchDest(1);
+                            }
+
+                            splitPoints.remove(n);
+                        }
                     }
+
+                    signalChainManager->updateVisibleEditors(editorArray[0], 0, 0, UPDATE);
+
                 }
 
             }
 
         }
-
-        } else if (element->hasTagName("AUDIO"))
+        else if (element->hasTagName("AUDIO"))
         {
             int bufferSize = element->getIntAttribute("bufferSize");
             getAudioComponent()->setBufferSize(bufferSize);
@@ -1406,6 +1583,7 @@ const String EditorViewport::loadState(File fileToLoad)
     getProcessorGraph()->restoreParameters();
 
     getControlPanel()->loadStateFromXml(xml); // save the control panel settings
+    getProcessorList()->loadStateFromXml(xml);
     getUIComponent()->loadStateFromXml(xml);  // save the UI settings
 
     if (editorArray.size() > 0)
@@ -1413,17 +1591,23 @@ const String EditorViewport::loadState(File fileToLoad)
 
     refreshEditors();
 
+    getProcessorGraph()->restoreParameters();
+
+
     String error = "Opened ";
     error += currentFile.getFileName();
 
     delete xml;
+
+    currentId=maxID+1; // make sure future processors don't have overlapping id numbers
+
     return error;
 }
 /* Set parameters based on XML.*/
 void EditorViewport::setParametersByXML(GenericProcessor* targetProcessor, XmlElement* processorXML)
 {
     // Should probably do some error checking to make sure XML is valid, depending on how it treats errors (will likely just not update parameters, but error message could be nice.)
-    int numberParameters=targetProcessor->getNumParameters();
+    int numberParameters = targetProcessor->getNumParameters();
     // Ditto channels. Not sure how to handle different channel sizes when variable sources (file reader etc. change). Maybe I should check number of channels vs source, but that requires hardcoding when source matters.
     //int numChannels=(targetProcessor->channels).size();
     //int numEventChannels=(targetProcessor->eventChannels).size();
@@ -1451,7 +1635,7 @@ void EditorViewport::setParametersByXML(GenericProcessor* targetProcessor, XmlEl
 
             for (int j = 0; j < numberParameters; ++j)
             {
-                parameterNameForXML=targetProcessor->getParameterName(j);
+                parameterNameForXML = targetProcessor->getParameterName(j);
 
                 if (parameterXML->getStringAttribute("name")==parameterNameForXML)
                 {

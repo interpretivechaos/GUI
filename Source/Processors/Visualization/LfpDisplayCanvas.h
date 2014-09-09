@@ -44,7 +44,9 @@ class EventDisplayInterface;
 */
 
 class LfpDisplayCanvas : public Visualizer,
-    public ComboBox::Listener
+    public ComboBox::Listener,
+    public Button::Listener,
+    public KeyListener
 
 {
 public:
@@ -60,6 +62,9 @@ public:
     void setParameter(int, float);
     void setParameter(int, int, int, float) {}
 
+	void setRangeSelection(float range); // set range selection combo box to correct value if it has been changed by scolling etc.
+	void setSpreadSelection(int spread); // set spread selection combo box to correct value if it has been changed by scolling etc.
+
     void paint(Graphics& g);
 
     void refresh();
@@ -69,23 +74,37 @@ public:
     int getChannelHeight();
 
     int getNumChannels();
+    bool getInputInvertedState();
+    bool getDrawMethodState();
 
-    float getXCoord(int chan, int samp);
-    float getYCoord(int chan, int samp);
+    const float getXCoord(int chan, int samp);
+    const float getYCoord(int chan, int samp);
+
+    const float getYCoordMin(int chan, int samp);
+    const float getYCoordMean(int chan, int samp);
+    const float getYCoordMax(int chan, int samp);
 
     int screenBufferIndex;
     int lastScreenBufferIndex;
 
     void comboBoxChanged(ComboBox* cb);
+    void buttonClicked(Button* button);
 
     void saveVisualizerParameters(XmlElement* xml);
-
     void loadVisualizerParameters(XmlElement* xml);
+
+    bool keyPressed(const KeyPress& key);
+    bool keyPressed(const KeyPress& key, Component* orig);
+
 
     //void scrollBarMoved(ScrollBar *scrollBarThatHasMoved, double newRangeStart);
 
     bool fullredraw; // used to indicate that a full redraw is required. is set false after each full redraw, there is a similar switch for ach ch display;
     static const int leftmargin=50; // left margin for lfp plots (so the ch number text doesnt overlap)
+
+    Array<bool> isChannelEnabled;
+
+	int nChans;
 
 private:
 
@@ -94,15 +113,22 @@ private:
     float displayGain;
     float timeOffset;
     //int spread ; // vertical spacing between channels
-    
+
 
     static const int MAX_N_CHAN = 256;  // maximum number of channels
     static const int MAX_N_SAMP = 5000; // maximum display size in pixels
     //float waves[MAX_N_CHAN][MAX_N_SAMP*2]; // we need an x and y point for each sample
 
     LfpDisplayNode* processor;
-    AudioSampleBuffer* displayBuffer;
-    AudioSampleBuffer* screenBuffer;
+    AudioSampleBuffer* displayBuffer; // sample wise data buffer for display
+    AudioSampleBuffer* screenBuffer; // subsampled buffer- one int per pixel
+
+    //'define 3 buffers for min mean and max for better plotting of spikes
+    // not pretty, but 'AudioSampleBuffer works only for channels X samples
+    AudioSampleBuffer* screenBufferMin; // like screenBuffer but holds min/mean/max values per pixel
+    AudioSampleBuffer* screenBufferMean; // like screenBuffer but holds min/mean/max values per pixel
+    AudioSampleBuffer* screenBufferMax; // like screenBuffer but holds min/mean/max values per pixel
+
     MidiBuffer* eventBuffer;
 
     ScopedPointer<LfpTimescale> timescale;
@@ -113,6 +139,9 @@ private:
     ScopedPointer<ComboBox> rangeSelection;
     ScopedPointer<ComboBox> spreadSelection;
     ScopedPointer<ComboBox> colorGroupingSelection;
+    ScopedPointer<UtilityButton> invertInputButton;
+    ScopedPointer<UtilityButton> drawMethodButton;
+    ScopedPointer<UtilityButton> pauseButton;
 
     StringArray voltageRanges;
     StringArray timebases;
@@ -127,9 +156,7 @@ private:
     int displayBufferIndex;
     int displayBufferSize;
 
-    int scrollBarThickness;
-
-    int nChans;
+	int scrollBarThickness;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(LfpDisplayCanvas);
 
@@ -181,8 +208,10 @@ public:
     void setRange(float range);
     int getRange();
 
-    void setChannelHeight(int r);
+    void setChannelHeight(int r, bool resetSingle = true);
     int getChannelHeight();
+    void setInputInverted(bool);
+    void setDrawMethod(bool);
 
     void setColors();
 
@@ -196,14 +225,20 @@ public:
     bool getEnabledState(int);
     void enableChannel(bool, int);
 
+	bool getSingleChannelState();
+
     Array<Colour> channelColours;
 
     Array<LfpChannelDisplay*> channels;
     Array<LfpChannelDisplayInfo*> channelInfo;
 
     bool eventDisplayEnabled[8];
+    bool isPaused; // simple pause function, skips screen bufer updates
 
 private:
+	void toggleSingleChannel(int chan);
+	int singleChan;
+
     int numChans;
 
     int totalHeight;
@@ -211,9 +246,10 @@ private:
     int colorGrouping;
 
     LfpDisplayCanvas* canvas;
-    Viewport* viewport;    
+    Viewport* viewport;
 
     float range;
+
 
 };
 
@@ -241,8 +277,16 @@ public:
     void setRange(float range);
     int getRange();
 
+    void setInputInverted(bool);
+    void setCanBeInverted(bool);
+
+    void setDrawMethod(bool);
+
     void setEnabledState(bool);
-    bool getEnabledState() {return isEnabled;}
+    bool getEnabledState()
+    {
+        return isEnabled;
+    }
 
     bool fullredraw; // used to indicate that a full redraw is required. is set false after each full redraw
 
@@ -268,11 +312,14 @@ protected:
     float range;
 
     bool isEnabled;
+    bool inputInverted;
+    bool canBeInverted;
+    bool drawMethod;
 
 };
 
 class LfpChannelDisplayInfo : public LfpChannelDisplay,
-                              public Button::Listener
+    public Button::Listener
 {
 public:
     LfpChannelDisplayInfo(LfpDisplayCanvas*, LfpDisplay*, int channelNumber);
@@ -286,9 +333,9 @@ public:
     void setEnabledState(bool);
 
 private:
-    
-    ScopedPointer<UtilityButton> enableButton;        
-                
+
+    ScopedPointer<UtilityButton> enableButton;
+
 };
 
 class EventDisplayInterface : public Component,

@@ -28,21 +28,21 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 
 ChannelMappingNode::ChannelMappingNode()
-	: GenericProcessor("Channel Map"), previousChannelCount(0), channelBuffer(1,10000)
+    : GenericProcessor("Channel Map"), previousChannelCount(0), channelBuffer(1,10000)
 {
-	referenceArray.resize(1024); // make room for 1024 channels
-	channelArray.resize(1024);
+    referenceArray.resize(1024); // make room for 1024 channels
+    channelArray.resize(1024);
 
-	for (int i = 0; i < referenceArray.size(); i++)
-	{
-		channelArray.set(i, i);
-		referenceArray.set(i,-1);
-		enabledChannelArray.set(i,true);
-	}
-	for (int i = 0; i < NUM_REFERENCES; i++)
-	{
-		referenceChannels.set(i, -1);
-	}
+    for (int i = 0; i < referenceArray.size(); i++)
+    {
+        channelArray.set(i, i);
+        referenceArray.set(i,-1);
+        enabledChannelArray.set(i,true);
+    }
+    for (int i = 0; i < NUM_REFERENCES; i++)
+    {
+        referenceChannels.set(i, -1);
+    }
 
 }
 
@@ -53,40 +53,57 @@ ChannelMappingNode::~ChannelMappingNode()
 
 AudioProcessorEditor* ChannelMappingNode::createEditor()
 {
-	editor = new ChannelMappingEditor(this, true);
+    editor = new ChannelMappingEditor(this, true);
 
-	std::cout << "Creating editor." << std::endl;
+    //std::cout << "Creating editor." << std::endl;
 
-	return editor;
+    return editor;
 }
 
 
 
 void ChannelMappingNode::updateSettings()
 {
-	if (getNumInputs() > 0)
-		channelBuffer.setSize(getNumInputs(), 10000);
+    int j;
+    if (getNumInputs() > 0)
+        channelBuffer.setSize(getNumInputs(), 10000);
 
-	if (getNumInputs() != previousChannelCount)
-	{
-		previousChannelCount = getNumInputs();
-	}
-	else
-	{
-		int j=0;
-		for (int i=0; i < getNumInputs(); i++)
-		{
-			if (enabledChannelArray[i])
-			{
-				j++;
-			}
-			else
-			{
-				channels.remove(j);
-			}
-		}
-		settings.numOutputs=j;
-	}
+    if (getNumInputs() != previousChannelCount)
+    {
+        previousChannelCount = getNumInputs();
+        if (editorIsConfigured)
+        {
+            j = 0;
+            for (int i = 0; i < getNumInputs(); i++)
+            {
+                if (enabledChannelArray[i])
+                {
+                    j++;
+                }
+                else
+                {
+                    channels.remove(j);
+                }
+            }
+            settings.numOutputs = j;
+        }
+    }
+    else
+    {
+        j = 0;
+        for (int i = 0; i < getNumInputs(); i++)
+        {
+            if (enabledChannelArray[i])
+            {
+                j++;
+            }
+            else
+            {
+                channels.remove(j);
+            }
+        }
+        settings.numOutputs=j;
+    }
 
 }
 
@@ -94,76 +111,75 @@ void ChannelMappingNode::updateSettings()
 void ChannelMappingNode::setParameter(int parameterIndex, float newValue)
 {
 
-	if (parameterIndex == 1)
-	{
-		referenceArray.set(currentChannel, (int) newValue);
-	}
-	else if (parameterIndex == 2)
-	{
-		referenceChannels.set((int) newValue, currentChannel);
-	}
-	else if (parameterIndex == 3)
-	{
-		enabledChannelArray.set(currentChannel, (newValue != 0) ? true : false);
-	}
-	else
-	{
-		channelArray.set(currentChannel, (int) newValue);
-	}
+    if (parameterIndex == 1)
+    {
+        referenceArray.set(currentChannel, (int) newValue);
+    }
+    else if (parameterIndex == 2)
+    {
+        referenceChannels.set((int) newValue, currentChannel);
+    }
+    else if (parameterIndex == 3)
+    {
+        enabledChannelArray.set(currentChannel, (newValue != 0) ? true : false);
+    }
+    else if (parameterIndex == 4)
+    {
+        editorIsConfigured = (newValue != 0) ? true : false;
+    }
+    else
+    {
+        channelArray.set(currentChannel, (int) newValue);
+    }
 
 }
 
 void ChannelMappingNode::process(AudioSampleBuffer& buffer,
-								 MidiBuffer& midiMessages,
-								 int& nSamples)
+                                 MidiBuffer& midiMessages,
+                                 int& nSamples)
 {
-	int j=0;
+    int j=0;
+    int i=0;
+    int realChan;
 
-	// use copy constructor to set the data to refer to
-	channelBuffer = buffer;
+    // use copy constructor to set the data to refer to
+    channelBuffer = buffer;
 
-	// copy it back into the buffer according to the channel mapping
-	buffer.clear();
+    buffer.clear();
 
-	for (int i = 0; i < buffer.getNumChannels(); i++)
-	{
-		if (enabledChannelArray[channelArray[i]])
-		{
-			buffer.addFrom(j, // destChannel
-				0, // destStartSample
-				channelBuffer, // source
-				channelArray[i], // sourceChannel
-				0, // sourceStartSample
-				nSamples, // numSamples
-				1.0f // gain to apply to source (positive for original signal)
-				);
-			j++;
-		}
+    while (j < settings.numOutputs)
+    {
+        realChan = channelArray[i];
+        if ((realChan < channelBuffer.getNumChannels()) && (enabledChannelArray[realChan]))
+        {
+            // copy it back into the buffer according to the channel mapping
+            buffer.addFrom(j, // destChannel
+                           0, // destStartSample
+                           channelBuffer, // source
+                           realChan, // sourceChannel
+                           0, // sourceStartSample
+                           nSamples, // numSamples
+                           1.0f // gain to apply to source (positive for original signal)
+                          );
 
-	}
+            // now do the referencing
+            if ((referenceArray[realChan] > -1) && (referenceChannels[referenceArray[realChan]] > -1)
+                && (referenceChannels[referenceArray[realChan]] < channelBuffer.getNumChannels()))
+            {
+                buffer.addFrom(j, // destChannel
+                               0, // destStartSample
+                               channelBuffer, // source
+                               referenceChannels[referenceArray[realChan]], // sourceChannel
+                               0, // sourceStartSample
+                               nSamples, // numSamples
+                               -1.0f // gain to apply to source (negative for reference)
+                              );
+            }
+            j++;
+        }
+        i++;
 
-	j=0;
-	// now do the referencing
-	for (int i = 0; i < buffer.getNumChannels(); i++)
-	{
-		int realChan = channelArray[i];
-		if (enabledChannelArray[realChan])
-		{
-			if ((referenceArray[realChan] > -1) && referenceChannels[referenceArray[realChan]] > -1)
-			{
-
-				buffer.addFrom(j, // destChannel
-					0, // destStartSample
-					channelBuffer, // source
-					referenceChannels[referenceArray[realChan]], // sourceChannel
-					0, // sourceStartSample
-					nSamples, // numSamples
-					-1.0f // gain to apply to source (negative for reference)
-					);
-			}
-			j++;
-		}
-	}
+    }
 
 }
 

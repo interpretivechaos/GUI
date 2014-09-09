@@ -65,11 +65,12 @@ public:
 private:
 
     Array<int> referenceArray;
-	Array<int> referenceChannels;
+    Array<int> referenceChannels;
     Array<int> channelArray;
-	Array<bool> enabledChannelArray;
+    Array<bool> enabledChannelArray;
 
-	int previousChannelCount;
+    int previousChannelCount;
+    bool editorIsConfigured;
 
     AudioSampleBuffer channelBuffer;
 

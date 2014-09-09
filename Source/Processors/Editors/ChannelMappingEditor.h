@@ -41,7 +41,7 @@
 */
 
 class ChannelMappingEditor : public GenericEditor,
-	public DragAndDropContainer
+    public DragAndDropContainer
 
 {
 public:
@@ -52,47 +52,58 @@ public:
 
     void updateSettings();
 
-    void createElectrodeButtons(int numNeeded);
+    void createElectrodeButtons(int numNeeded, bool clearPrevious = true);
 
-    void saveEditorParameters(XmlElement* xml);
-    void loadEditorParameters(XmlElement* xml);
+    void saveCustomParameters(XmlElement* xml);
+    void loadCustomParameters(XmlElement* xml);
 
     void channelChanged(int chan);
 
-	void mouseDrag(const MouseEvent &e);
+    void mouseDrag(const MouseEvent& e);
 
-	void mouseUp(const MouseEvent &e);
+    void mouseUp(const MouseEvent& e);
 
-	void mouseDoubleClick(const MouseEvent &e);
+    void mouseDoubleClick(const MouseEvent& e);
 
+    void mouseWheelMove(const MouseEvent& event, const MouseWheelDetails& wheel);
+
+    void collapsedStateChanged();
 
 private:
 
-	void setChannelReference(ElectrodeButton *button);
-	void setChannelPosition(int position, int channel);
+    void setChannelReference(ElectrodeButton* button);
+    void setChannelPosition(int position, int channel);
+    void checkUnusedChannels();
+    void setConfigured(bool state);
 
-	OwnedArray<ElectrodeButton> electrodeButtons;
-	OwnedArray<ElectrodeButton> referenceButtons;
+    void refreshButtonLocations();
+
+    OwnedArray<ElectrodeButton> electrodeButtons;
+    OwnedArray<ElectrodeButton> referenceButtons;
     ScopedPointer<ElectrodeEditorButton> selectAllButton;
     ScopedPointer<ElectrodeEditorButton> modifyButton;
+    ScopedPointer<ElectrodeEditorButton> resetButton;
 
     Array<int> channelArray;
     Array<int> referenceArray;
-	Array<int> referenceChannels;
-	Array<bool> enabledChannelArray;
+    Array<int> referenceChannels;
+    Array<bool> enabledChannelArray;
 
     int previousChannelCount;
-	int selectedReference;
-	bool reorderActive;
-	int previousClickedChan;
-	int previousShiftClickedChan;
-	bool previousClickedState;
+    int selectedReference;
+    bool reorderActive;
+    int previousClickedChan;
+    int previousShiftClickedChan;
+    bool previousClickedState;
 
-	bool isDragging;
-	int initialDraggedButton;
-	int draggingChannel;
-	int lastHoverButton;
-	
+    bool isDragging;
+    int initialDraggedButton;
+    int draggingChannel;
+    int lastHoverButton;
+    bool isConfigured;
+
+    float scrollDistance;
+
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(ChannelMappingEditor);
 

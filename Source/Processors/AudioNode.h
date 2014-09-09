@@ -93,7 +93,7 @@ public:
 
     /** A pointer to the AudioNode's editor. */
     ScopedPointer<AudioEditor> audioEditor;
-    
+
     void updateBufferSize();
 
     void prepareToPlay(double sampleRate_, int estimatedSamplesPerBlock);
@@ -103,6 +103,7 @@ private:
     Array<int> leftChan;
     Array<int> rightChan;
     float volume;
+    float noiseGateLevel; // in microvolts
 
     /** An array of pointers to the channels that feed into the AudioNode. */
     Array<Channel*> channelPointers;

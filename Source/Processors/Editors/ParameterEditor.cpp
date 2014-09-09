@@ -125,7 +125,7 @@ ParameterEditor::ParameterEditor(GenericProcessor* proc, Parameter& p, Font labe
             pb->addListener(this);
 
             if (i == (int) p.getDefaultValue())
-                pb->setToggleState(true, false);
+                pb->setToggleState(true, dontSendNotification);
 
             addAndMakeVisible(pb);
 
@@ -417,7 +417,7 @@ void ParameterButton::resized()
 
 ParameterCheckbox::ParameterCheckbox(bool defaultState) : Button("name"), isEnabled(true)
 {
-    setToggleState(defaultState, false);
+    setToggleState(defaultState, dontSendNotification);
     setClickingTogglesState(true);
 
     selectedGrad = ColourGradient(Colour(240,179,12),0.0,0.0,
@@ -463,7 +463,7 @@ void ParameterCheckbox::paintButton(Graphics& g, bool isMouseOver, bool isButton
         g.setGradientFill(deactivatedGrad);
     }
 
-   // AffineTransform a = AffineTransform::scale(0.98f, 0.94f, float(getWidth())/2.0f,
+    // AffineTransform a = AffineTransform::scale(0.98f, 0.94f, float(getWidth())/2.0f,
     //                                           float(getHeight())/2.0f);
 
     g.fillRoundedRectangle(1, 1, getWidth()-2, getHeight()-2, 2.0f);

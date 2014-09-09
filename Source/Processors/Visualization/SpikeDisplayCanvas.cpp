@@ -30,8 +30,8 @@ SpikeDisplayCanvas::SpikeDisplayCanvas(SpikeDisplayNode* n) :
 
     viewport = new Viewport();
     spikeDisplay = new SpikeDisplay(this, viewport);
-	thresholdCoordinator = new SpikeThresholdCoordinator();
-	spikeDisplay->registerThresholdCoordinator(thresholdCoordinator);
+    thresholdCoordinator = new SpikeThresholdCoordinator();
+    spikeDisplay->registerThresholdCoordinator(thresholdCoordinator);
 
     viewport->setViewedComponent(spikeDisplay, false);
     viewport->setScrollBarsShown(true, false);
@@ -43,11 +43,18 @@ SpikeDisplayCanvas::SpikeDisplayCanvas(SpikeDisplayNode* n) :
     clearButton->addListener(this);
     addAndMakeVisible(clearButton);
 
-	lockThresholdsButton = new UtilityButton("Lock Thresholds", Font("Small Text", 13, Font::plain));
-	lockThresholdsButton->setRadius(3.0f);
-	lockThresholdsButton->addListener(this);
-	lockThresholdsButton->setClickingTogglesState(true);
-	addAndMakeVisible(lockThresholdsButton);
+    lockThresholdsButton = new UtilityButton("Lock Thresholds", Font("Small Text", 13, Font::plain));
+    lockThresholdsButton->setRadius(3.0f);
+    lockThresholdsButton->addListener(this);
+    lockThresholdsButton->setClickingTogglesState(true);
+    addAndMakeVisible(lockThresholdsButton);
+
+    invertSpikesButton = new UtilityButton("Invert Spikes", Font("Small Text", 13, Font::plain));
+    invertSpikesButton->setRadius(3.0f);
+    invertSpikesButton->addListener(this);
+    invertSpikesButton->setClickingTogglesState(true);
+    invertSpikesButton->setToggleState(false, sendNotification);
+    addAndMakeVisible(invertSpikesButton);
 
     addAndMakeVisible(viewport);
 
@@ -79,17 +86,28 @@ void SpikeDisplayCanvas::endAnimation()
 void SpikeDisplayCanvas::update()
 {
 
-    std::cout << "Updating SpikeDisplayCanvas" << std::endl;
+    //std::cout << "Updating SpikeDisplayCanvas" << std::endl;
 
     int nPlots = processor->getNumElectrodes();
-    spikeDisplay->removePlots();
     processor->removeSpikePlots();
 
-    for (int i = 0; i < nPlots; i++)
+    if (nPlots != spikeDisplay->getNumPlots())
     {
-        SpikePlot* sp = spikeDisplay->addSpikePlot(processor->getNumberOfChannelsForElectrode(i), i,
-                                   processor->getNameForElectrode(i));
-        processor->addSpikePlotForElectrode(sp, i);
+        spikeDisplay->removePlots();
+
+        for (int i = 0; i < nPlots; i++)
+        {
+            SpikePlot* sp = spikeDisplay->addSpikePlot(processor->getNumberOfChannelsForElectrode(i), i,
+                                                       processor->getNameForElectrode(i));
+            processor->addSpikePlotForElectrode(sp, i);
+        }
+    }
+    else
+    {
+        for (int i = 0; i < nPlots; i++)
+        {
+            processor->addSpikePlotForElectrode(spikeDisplay->getSpikePlot(i), i);
+        }
     }
 
     spikeDisplay->resized();
@@ -111,7 +129,9 @@ void SpikeDisplayCanvas::resized()
 
     clearButton->setBounds(10, getHeight()-40, 100,20);
 
-	lockThresholdsButton->setBounds(130, getHeight()-40, 130,20);
+    lockThresholdsButton->setBounds(130, getHeight()-40, 130,20);
+
+    invertSpikesButton->setBounds(270, getHeight()-40, 130,20);
 
 }
 
@@ -161,18 +181,93 @@ void SpikeDisplayCanvas::buttonClicked(Button* button)
     {
         spikeDisplay->clear();
     }
-	else if (button == lockThresholdsButton)
-	{
-		thresholdCoordinator->setLockThresholds(button->getToggleState());
-	}
+    else if (button == lockThresholdsButton)
+    {
+        thresholdCoordinator->setLockThresholds(button->getToggleState());
+    }
+    else if (button == invertSpikesButton)
+    {
+        spikeDisplay->invertSpikes(button->getToggleState());
+    }
 }
 
+void SpikeDisplayCanvas::saveVisualizerParameters(XmlElement* xml)
+{
 
+    XmlElement* xmlNode = xml->createNewChildElement("SPIKEDISPLAY");
+
+    xmlNode->setAttribute("LockThresholds",lockThresholdsButton->getToggleState());
+    xmlNode->setAttribute("InvertSpikes",invertSpikesButton->getToggleState());
+
+    for (int i = 0; i < spikeDisplay->getNumPlots(); i++)
+    {
+        XmlElement* plotNode = xmlNode->createNewChildElement("PLOT");
+
+        for (int j = 0; j < spikeDisplay->getNumChannelsForPlot(i); j++)
+        {
+            XmlElement* axisNode = plotNode->createNewChildElement("AXIS");
+            axisNode->setAttribute("thresh",spikeDisplay->getThresholdForWaveAxis(i,j));
+            axisNode->setAttribute("range",spikeDisplay->getRangeForWaveAxis(i,j));
+        }
+    }
+
+}
+
+void SpikeDisplayCanvas::loadVisualizerParameters(XmlElement* xml)
+{
+    forEachXmlChildElement(*xml, xmlNode)
+    {
+        if (xmlNode->hasTagName("SPIKEDISPLAY"))
+        {
+            spikeDisplay->invertSpikes(xmlNode->getBoolAttribute("InvertSpikes"));
+            invertSpikesButton->setToggleState(xmlNode->getBoolAttribute("InvertSpikes"), dontSendNotification);
+            lockThresholdsButton->setToggleState(xmlNode->getBoolAttribute("LockThresholds"), sendNotification);
+
+            int plotIndex = -1;
+
+            forEachXmlChildElement(*xmlNode, plotNode)
+            {
+                if (plotNode->hasTagName("PLOT"))
+                {
+
+                    plotIndex++;
+
+                    std::cout << "PLOT NUMBER " << plotIndex << std::endl;
+
+                    int channelIndex = -1;
+
+                    forEachXmlChildElement(*plotNode, channelNode)
+                    {
+
+                        if (channelNode->hasTagName("AXIS"))
+                        {
+                            channelIndex++;
+
+                            std::cout << "CHANNEL NUMBER " << channelIndex << std::endl;
+
+                            spikeDisplay->setThresholdForWaveAxis(plotIndex,
+                                                                  channelIndex,
+                                                                  channelNode->getDoubleAttribute("thresh"));
+
+                            spikeDisplay->setRangeForWaveAxis(plotIndex,
+                                                              channelIndex,
+                                                              channelNode->getDoubleAttribute("range"));
+
+                        }
+                    }
+
+
+                }
+            }
+
+        }
+    }
+}
 
 // ----------------------------------------------------------------
 
 SpikeDisplay::SpikeDisplay(SpikeDisplayCanvas* sdc, Viewport* v) :
-	canvas(sdc), viewport(v), thresholdCoordinator(nullptr)
+    canvas(sdc), viewport(v), thresholdCoordinator(nullptr), shouldInvert(false)
 {
 
     totalHeight = 1000;
@@ -211,12 +306,18 @@ SpikePlot* SpikeDisplay::addSpikePlot(int numChannels, int electrodeNum, String 
     SpikePlot* spikePlot = new SpikePlot(canvas, electrodeNum, 1000 + numChannels, name_);
     spikePlots.add(spikePlot);
     addAndMakeVisible(spikePlot);
-	if (thresholdCoordinator)
-	{
-		spikePlot->registerThresholdCoordinator(thresholdCoordinator);
-	}
+    spikePlot->invertSpikes(shouldInvert);
+    if (thresholdCoordinator)
+    {
+        spikePlot->registerThresholdCoordinator(thresholdCoordinator);
+    }
 
     return spikePlot;
+}
+
+SpikePlot* SpikeDisplay::getSpikePlot(int index)
+{
+    return spikePlots[index];
 }
 
 void SpikeDisplay::paint(Graphics& g)
@@ -335,25 +436,69 @@ void SpikeDisplay::mouseDown(const MouseEvent& event)
 
 }
 
+
+void SpikeDisplay::invertSpikes(bool shouldInvert_)
+{
+
+    shouldInvert = shouldInvert_;
+
+    for (int i = 0; i < spikePlots.size(); i++)
+    {
+        spikePlots[i]->invertSpikes(shouldInvert_);
+    }
+
+    //std::cout << "Invert spikes? " << shouldInvert_ << std::endl;
+}
+
 void SpikeDisplay::plotSpike(const SpikeObject& spike, int electrodeNum)
 {
     spikePlots[electrodeNum]->processSpikeObject(spike);
 }
 
-void SpikeDisplay::registerThresholdCoordinator(SpikeThresholdCoordinator *stc)
+void SpikeDisplay::registerThresholdCoordinator(SpikeThresholdCoordinator* stc)
 {
-	thresholdCoordinator = stc;
-	for (int i=0; i < spikePlots.size(); i++)
-	{
-		spikePlots[i]->registerThresholdCoordinator(stc);
-	}
+    thresholdCoordinator = stc;
+    for (int i=0; i < spikePlots.size(); i++)
+    {
+        spikePlots[i]->registerThresholdCoordinator(stc);
+    }
+}
+
+int SpikeDisplay::getNumPlots()
+{
+    return spikePlots.size();
+}
+
+int SpikeDisplay::getNumChannelsForPlot(int plotNum)
+{
+    return spikePlots[plotNum]->nChannels;
+}
+
+float SpikeDisplay::getThresholdForWaveAxis(int plotNum, int axisNum)
+{
+    return spikePlots[plotNum]->getDisplayThresholdForChannel(axisNum);
+}
+
+float SpikeDisplay::getRangeForWaveAxis(int plotNum, int axisNum)
+{
+    return spikePlots[plotNum]->getRangeForChannel(axisNum);
+}
+
+void SpikeDisplay::setThresholdForWaveAxis(int plotNum, int axisNum, float range)
+{
+    return spikePlots[plotNum]->setDisplayThresholdForChannel(axisNum, range);
+}
+
+void SpikeDisplay::setRangeForWaveAxis(int plotNum, int axisNum, float range)
+{
+    return spikePlots[plotNum]->setRangeForChannel(axisNum, range);
 }
 
 // ----------------------------------------------------------------
 
 SpikePlot::SpikePlot(SpikeDisplayCanvas* sdc, int elecNum, int p, String name_) :
     canvas(sdc), isSelected(false), electrodeNumber(elecNum),  plotType(p),
-	limitsChanged(true), name(name_)
+    limitsChanged(true), name(name_)
 
 {
 
@@ -414,15 +559,15 @@ SpikePlot::SpikePlot(SpikeDisplayCanvas* sdc, int elecNum, int p, String name_) 
 
 SpikePlot::~SpikePlot()
 {
-	if (thresholdCoordinator)
-	{
-		thresholdCoordinator->unregisterSpikePlot(this);
-	}
+    if (thresholdCoordinator)
+    {
+        thresholdCoordinator->unregisterSpikePlot(this);
+    }
 }
 
 void SpikePlot::paint(Graphics& g)
 {
-    
+
     //const MessageManagerLock mmLock;
 
     g.setColour(Colours::white);
@@ -431,12 +576,12 @@ void SpikePlot::paint(Graphics& g)
     g.setFont(font);
 
     g.drawText(name,10,0,200,20,Justification::left,false);
-    
+
 }
 
 void SpikePlot::processSpikeObject(const SpikeObject& s)
 {
-   // std::cout << "ElectrodePlot::processSpikeObject()" << std::endl;
+    // std::cout << "ElectrodePlot::processSpikeObject()" << std::endl;
 
     // first, check if it's above threshold
     // bool aboveThreshold = false;
@@ -448,11 +593,11 @@ void SpikePlot::processSpikeObject(const SpikeObject& s)
 
     // if (aboveThreshold)
     // {
-        for (int i = 0; i < nWaveAx; i++)
-            wAxes[i]->updateSpikeData(s);
+    for (int i = 0; i < nWaveAx; i++)
+        wAxes[i]->updateSpikeData(s);
 
-        for (int i = 0; i < nProjAx; i++)
-            pAxes[i]->updateSpikeData(s);
+    for (int i = 0; i < nProjAx; i++)
+        pAxes[i]->updateSpikeData(s);
     // }
 
     //     if (aboveThreshold && isRecording)
@@ -638,58 +783,84 @@ float SpikePlot::getDisplayThresholdForChannel(int i)
     return wAxes[i]->getDisplayThreshold();
 }
 
+void SpikePlot::setDisplayThresholdForChannel(int i, float thresh)
+{
+    std::cout << "Setting threshold to " << thresh << std::endl;
+    wAxes[i]->setDisplayThreshold(thresh);
+}
+
+float SpikePlot::getRangeForChannel(int i)
+{
+    return wAxes[i]->getRange();
+}
+
+void SpikePlot::setRangeForChannel(int i, float range)
+{
+    std::cout << "Setting range to " << range << std::endl;
+    wAxes[i]->setRange(range);
+    rangeButtons[i]->setLabel(String(int(range)));
+}
+
 void SpikePlot::setDetectorThresholdForChannel(int i, float t)
 {
-   // std::cout << "Setting threshold to " << t << std::endl;
+    // std::cout << "Setting threshold to " << t << std::endl;
     wAxes[i]->setDetectorThreshold(t);
 }
 
-void SpikePlot::registerThresholdCoordinator(SpikeThresholdCoordinator *stc)
+void SpikePlot::registerThresholdCoordinator(SpikeThresholdCoordinator* stc)
 {
-	thresholdCoordinator = stc;
-	stc->registerSpikePlot(this);
-	for (int i=0; i < wAxes.size(); i++)
-	{
-		wAxes[i]->registerThresholdCoordinator(stc);
-	}
+    thresholdCoordinator = stc;
+    stc->registerSpikePlot(this);
+    for (int i=0; i < wAxes.size(); i++)
+    {
+        wAxes[i]->registerThresholdCoordinator(stc);
+    }
 }
 
 void SpikePlot::setAllThresholds(float displayThreshold, float range)
 {
-	String label;
-	for (int i=0; i< nWaveAx; i++)
-	{
-		ranges.set(i,range);
-		wAxes[i]->setDisplaythreshold(displayThreshold);
-	}
-	
-	if (range == 100)
-	{
-		label = "100";
-	}
-	else if (range == 250)
-	{
-		label = "250";
-	}
-	else
-	{
-		label = "500";
-	}
-	
-	for(int i=0; i < rangeButtons.size(); i++)
-	{
-		rangeButtons[i]->setLabel(label);
-	}
+    String label;
+    for (int i=0; i< nWaveAx; i++)
+    {
+        ranges.set(i,range);
+        wAxes[i]->setDisplayThreshold(displayThreshold);
+    }
 
-	setLimitsOnAxes();
+    if (range == 100)
+    {
+        label = "100";
+    }
+    else if (range == 250)
+    {
+        label = "250";
+    }
+    else
+    {
+        label = "500";
+    }
+
+    for (int i=0; i < rangeButtons.size(); i++)
+    {
+        rangeButtons[i]->setLabel(label);
+    }
+
+    setLimitsOnAxes();
+}
+
+void SpikePlot::invertSpikes(bool shouldInvert)
+{
+    for (int i = 0; i < nWaveAx; i++)
+    {
+        wAxes[i]->invertSpikes(shouldInvert);
+    }
 }
 
 // --------------------------------------------------
 
 
 WaveAxes::WaveAxes(int channel) : GenericAxes(channel),
-    drawGrid(true), 
-    displayThresholdLevel(0.0f),  
+    drawGrid(true),
+    displayThresholdLevel(0.0f),
     detectorThresholdLevel(0.0f),
     spikesReceivedSinceLastRedraw(0),
     spikeIndex(0),
@@ -697,8 +868,9 @@ WaveAxes::WaveAxes(int channel) : GenericAxes(channel),
     range(250.0f),
     isOverThresholdSlider(false),
     isDraggingThresholdSlider(false),
-	thresholdCoordinator(nullptr)
-    
+    thresholdCoordinator(nullptr),
+    spikesInverted(false)
+
 {
 
     addMouseListener(this, true);
@@ -719,7 +891,7 @@ WaveAxes::WaveAxes(int channel) : GenericAxes(channel),
 void WaveAxes::setRange(float r)
 {
 
-    //std::cout << "Setting range to " << r << std::endl;
+    std::cout << "Setting range to " << r << std::endl;
 
     range = r;
 
@@ -731,7 +903,7 @@ void WaveAxes::paint(Graphics& g)
     g.setColour(Colours::black);
     g.fillRect(0,0,getWidth(), getHeight());
 
-   // int chan = 0;
+    // int chan = 0;
 
     // draw the grid lines for the waveforms
 
@@ -749,16 +921,16 @@ void WaveAxes::paint(Graphics& g)
     }
 
 
-     for (int spikeNum = 0; spikeNum < bufferSize; spikeNum++)
-     {
+    for (int spikeNum = 0; spikeNum < bufferSize; spikeNum++)
+    {
 
-         if (spikeNum != spikeIndex)
-         {
-             g.setColour(Colours::grey);
-             plotSpike(spikeBuffer[spikeNum], g);
-         }
+        if (spikeNum != spikeIndex)
+        {
+            g.setColour(Colours::grey);
+            plotSpike(spikeBuffer[spikeNum], g);
+        }
 
-     }
+    }
 
     g.setColour(Colours::white);
     plotSpike(spikeBuffer[spikeIndex], g);
@@ -790,9 +962,20 @@ void WaveAxes::plotSpike(const SpikeObject& s, Graphics& g)
 
         if (*s.gain != 0)
         {
-            float s1 = h/2 + float(s.data[sampIdx]-32768)/float(*s.gain)*1000.0f / range * h;
-            float s2 =  h/2 + float(s.data[sampIdx+1]-32768)/float(*s.gain)*1000.0f / range * h;
 
+            float s1, s2;
+
+            if (spikesInverted)
+            {
+                s1 = h/2 + float(s.data[sampIdx]-32768)/float(*s.gain)*1000.0f / range * h;
+                s2 = h/2 + float(s.data[sampIdx+1]-32768)/float(*s.gain)*1000.0f / range * h;
+            }
+            else
+            {
+                s1 = h/2 - float(s.data[sampIdx]-32768)/float(*s.gain)*1000.0f / range * h;
+                s2 = h/2 - float(s.data[sampIdx+1]-32768)/float(*s.gain)*1000.0f / range * h;
+
+            }
             g.drawLine(x,
                        s1,
                        x+dx,
@@ -811,15 +994,24 @@ void WaveAxes::drawThresholdSlider(Graphics& g)
 {
 
     // draw display threshold (editable)
-    float h = getHeight()*(0.5f - displayThresholdLevel/range);
+    float h;
+
+    if (spikesInverted)
+        h = getHeight()*(0.5f - displayThresholdLevel/range);
+    else
+        h = getHeight()*(0.5f + displayThresholdLevel/range);
 
     g.setColour(thresholdColour);
     g.drawLine(0, h, getWidth(), h);
+
     g.drawText(String(roundFloatToInt(displayThresholdLevel)),2,h,25,10,Justification::left, false);
 
     // draw detector threshold (not editable)
-    h = getHeight()*(0.5f - detectorThresholdLevel/range);
-    
+    if (spikesInverted)
+        h = getHeight()*(0.5f - detectorThresholdLevel/range);
+    else
+        h = getHeight()*(0.5f + detectorThresholdLevel/range);
+
     g.setColour(Colours::orange);
     g.drawLine(0, h, getWidth(), h);
 }
@@ -860,7 +1052,7 @@ bool WaveAxes::updateSpikeData(const SpikeObject& s)
         spikeBuffer.set(spikeIndex, newSpike);
 
         spikesReceivedSinceLastRedraw++;
-        
+
     }
 
     return true;
@@ -912,6 +1104,11 @@ void WaveAxes::mouseMove(const MouseEvent& event)
 
     float h = getHeight()*(0.5f - displayThresholdLevel/range);
 
+    if (spikesInverted)
+        h = getHeight()*(0.5f - displayThresholdLevel/range);
+    else
+        h = getHeight()*(0.5f + displayThresholdLevel/range);
+
     // std::cout << y << " " << h << std::endl;
 
     if (y > h - 10.0f && y < h + 10.0f && !isOverThresholdSlider)
@@ -957,22 +1154,33 @@ void WaveAxes::mouseDrag(const MouseEvent& event)
 
         float thresholdSliderPosition =  float(event.y) / float(getHeight());
 
-        if (thresholdSliderPosition > 0.5f)
-            thresholdSliderPosition = 0.5f;
-        else if (thresholdSliderPosition < 0.0f)
-            thresholdSliderPosition = 0.0f;
+        if (spikesInverted)
+        {
+            if (thresholdSliderPosition > 0.5f)
+                thresholdSliderPosition = 0.5f;
+            else if (thresholdSliderPosition < 0.0f)
+                thresholdSliderPosition = 0.0f;
 
+            displayThresholdLevel = (0.5f - thresholdSliderPosition) * range;
+        }
+        else
+        {
+            if (thresholdSliderPosition < 0.5f)
+                thresholdSliderPosition = 0.5f;
+            else if (thresholdSliderPosition > 1.0f)
+                thresholdSliderPosition = 1.0f;
 
-        displayThresholdLevel = (0.5f - thresholdSliderPosition) * range;
+            displayThresholdLevel = (thresholdSliderPosition-0.5f) * range;
+        }
 
         //std::cout << "Threshold = " << thresholdLevel << std::endl;
 
-		if (thresholdCoordinator)
-		{
-			thresholdCoordinator->thresholdChanged(displayThresholdLevel,range);
-		}
+        if (thresholdCoordinator)
+        {
+            thresholdCoordinator->thresholdChanged(displayThresholdLevel,range);
+        }
 
-		repaint();
+        repaint();
     }
 }
 
@@ -1003,16 +1211,16 @@ void WaveAxes::setDetectorThreshold(float t)
     detectorThresholdLevel = t;
 }
 
-void WaveAxes::registerThresholdCoordinator(SpikeThresholdCoordinator *stc)
+void WaveAxes::registerThresholdCoordinator(SpikeThresholdCoordinator* stc)
 {
-	thresholdCoordinator = stc;
+    thresholdCoordinator = stc;
 }
 
-void WaveAxes::setDisplaythreshold(float threshold)
+void WaveAxes::setDisplayThreshold(float threshold)
 {
-	displayThresholdLevel = threshold;
-	
-	repaint();
+    displayThresholdLevel = threshold;
+
+    repaint();
 }
 
 // --------------------------------------------------
@@ -1279,36 +1487,36 @@ SpikeThresholdCoordinator::SpikeThresholdCoordinator() : lockThresholds(false) {
 
 SpikeThresholdCoordinator::~SpikeThresholdCoordinator()
 {
-	masterReference.clear();
+    masterReference.clear();
 }
 
-void SpikeThresholdCoordinator::registerSpikePlot(SpikePlot *sp)
+void SpikeThresholdCoordinator::registerSpikePlot(SpikePlot* sp)
 {
-	registeredPlots.addIfNotAlreadyThere(sp);
+    registeredPlots.addIfNotAlreadyThere(sp);
 }
 
-void SpikeThresholdCoordinator::unregisterSpikePlot(SpikePlot *sp)
+void SpikeThresholdCoordinator::unregisterSpikePlot(SpikePlot* sp)
 {
-	registeredPlots.removeAllInstancesOf(sp);
+    registeredPlots.removeAllInstancesOf(sp);
 }
 
 void SpikeThresholdCoordinator::setLockThresholds(bool en)
 {
-	lockThresholds = en;
+    lockThresholds = en;
 }
 
 bool SpikeThresholdCoordinator::getLockThresholds()
 {
-	return lockThresholds;
+    return lockThresholds;
 }
 
 void SpikeThresholdCoordinator::thresholdChanged(float displayThreshold, float range)
 {
-	if (lockThresholds)
-	{
-		for (int i = 0; i < registeredPlots.size(); i++)
-		{
-			registeredPlots[i]->setAllThresholds(displayThreshold,range);
-		}
-	}
+    if (lockThresholds)
+    {
+        for (int i = 0; i < registeredPlots.size(); i++)
+        {
+            registeredPlots[i]->setAllThresholds(displayThreshold,range);
+        }
+    }
 }

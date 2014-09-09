@@ -49,6 +49,10 @@ public:
 
     void switchIO(int i);
 
+    int getPathForEditor(GenericEditor* editor);
+    Array<GenericEditor*> getConnectedEditors();
+
+
 private:
 
     ImageButton* pipelineSelectorA;

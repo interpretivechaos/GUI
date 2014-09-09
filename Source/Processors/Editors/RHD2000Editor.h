@@ -62,8 +62,8 @@ public:
 
     void channelChanged(int chan);
 
-    void saveEditorParameters(XmlElement* xml);
-    void loadEditorParameters(XmlElement* xml);
+    void saveCustomParameters(XmlElement* xml);
+    void loadCustomParameters(XmlElement* xml);
 
 private:
 
@@ -177,36 +177,36 @@ private:
 };
 
 class AudioInterface : public Component,
-public Label::Listener
+    public Label::Listener
 {
 public:
     AudioInterface(RHD2000Thread*, RHD2000Editor*);
     ~AudioInterface();
-    
+
     void paint(Graphics& g);
     void labelTextChanged(Label* te);
-    
+
     void setNoiseSlicerLevel(int value);
     int getNoiseSlicerLevel();
     //void setGain(double value);
     //double getGain();
-    
+
 private:
-    
+
     String name;
-    
+
     String lastNoiseSlicerString;
     String lastGainString;
-    
+
     RHD2000Thread* board;
     RHD2000Editor* editor;
-    
+
     ScopedPointer<Label> noiseSlicerLevelSelection;
     //ScopedPointer<Label> gainSelection;
-    
+
     int actualNoiseSlicerLevel;
     //double actualGain;
-    
+
 };
 
 

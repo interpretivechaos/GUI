@@ -55,7 +55,7 @@ PulsePalOutputEditor::~PulsePalOutputEditor()
 
 }
 
-void PulsePalOutputEditor::saveEditorParameters(XmlElement* xml)
+void PulsePalOutputEditor::saveCustomParameters(XmlElement* xml)
 {
 
     xml->setAttribute("Type", "PulsePalOutputEditor");
@@ -68,10 +68,10 @@ void PulsePalOutputEditor::saveEditorParameters(XmlElement* xml)
         outputXml->setAttribute("Gate",channelTriggerInterfaces[i]->getGateChannel());
     }
 
-    
+
 }
 
-void PulsePalOutputEditor::loadEditorParameters(XmlElement* xml)
+void PulsePalOutputEditor::loadCustomParameters(XmlElement* xml)
 {
 
     forEachXmlChildElement(*xml, xmlNode)
@@ -108,9 +108,9 @@ ChannelTriggerInterface::ChannelTriggerInterface(PulsePal* pp, PulsePalOutput* p
 
     for (int i = 0; i < 10; i++)
         triggerSelector->addItem(String(i+1),i+2); // start numbering at one for
-                                                   // user-visible channels
+    // user-visible channels
 
-    triggerSelector->setSelectedId(1, false);
+    triggerSelector->setSelectedId(1, dontSendNotification);
     addAndMakeVisible(triggerSelector);
 
     gateSelector = new ComboBox();
@@ -120,9 +120,9 @@ ChannelTriggerInterface::ChannelTriggerInterface(PulsePal* pp, PulsePalOutput* p
 
     for (int i = 0; i < 10; i++)
         gateSelector->addItem(String(i+1),i+2); // start numbering at one for
-                                                // user-visible channels
+    // user-visible channels
 
-    gateSelector->setSelectedId(1, false);
+    gateSelector->setSelectedId(1, dontSendNotification);
     addAndMakeVisible(gateSelector);
 
 }

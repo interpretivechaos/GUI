@@ -36,6 +36,7 @@ RecordNode::RecordNode()
 
     isProcessing = false;
     isRecording = false;
+    allFilesOpened = false;
     blockIndex = 0;
     signalFilesShouldClose = false;
 
@@ -128,13 +129,13 @@ void RecordNode::resetConnections()
 void RecordNode::filenameComponentChanged(FilenameComponent* fnc)
 {
 
-    std::cout << "Got a new file" << std::endl;
+    //std::cout << "Got a new file" << std::endl;
     dataDirectory = fnc->getCurrentFile();
-    std::cout << "File name: " << dataDirectory.getFullPathName();
-    if (dataDirectory.isDirectory())
-        std::cout << " is a directory." << std::endl;
-    else
-        std::cout << " is NOT a directory." << std::endl;
+    // std::cout << "File name: " << dataDirectory.getFullPathName();
+    // if (dataDirectory.isDirectory())
+    //     std::cout << " is a directory." << std::endl;
+    // else
+    //     std::cout << " is NOT a directory." << std::endl;
 
     //createNewDirectory();
 
@@ -200,24 +201,24 @@ void RecordNode::updateFileName(Channel* ch)
         filename += ch->nodeId;
         filename += "_";
         filename += ch->name;
-        
+
         if (appendTrialNum)
         {
             filename += "_";
             filename += trialNum;
         }
-        
+
         filename += ".continuous";
     }
     else
     {
         filename += "all_channels.events";
     }
-    
-    
+
+
     ch->filename = filename;
     ch->file = 0;
-    
+
 
     //std::cout << "Updating " << filename << std::endl;
 
@@ -247,7 +248,7 @@ void RecordNode::createNewDirectory()
     }
 
     newDirectoryNeeded = false;
-    
+
     trialNum = 0;
 
 }
@@ -258,7 +259,7 @@ void RecordNode::createNewFiles()
     {
         updateFileName(channelPointers[i]);
     }
-    
+
 }
 
 String RecordNode::generateDirectoryName()
@@ -346,7 +347,7 @@ void RecordNode::setParameter(int parameterIndex, float newValue)
     {
 
         isRecording = true;
-        std::cout << "START RECORDING." << std::endl;
+        // std::cout << "START RECORDING." << std::endl;
 
         if (newDirectoryNeeded)
         {
@@ -366,7 +367,7 @@ void RecordNode::setParameter(int parameterIndex, float newValue)
         }
 
         createNewFiles();
-        
+
         openFile(eventChannel);
 
         blockIndex = 0; // reset index
@@ -375,7 +376,7 @@ void RecordNode::setParameter(int parameterIndex, float newValue)
         // create / open necessary files
         for (int i = 0; i < channelPointers.size(); i++)
         {
-           // std::cout << "Checking channel " << i << std::endl;
+            // std::cout << "Checking channel " << i << std::endl;
 
             if (channelPointers[i]->getRecordState())
             {
@@ -383,12 +384,14 @@ void RecordNode::setParameter(int parameterIndex, float newValue)
             }
         }
 
+        allFilesOpened = true;
+
     }
     else if (parameterIndex == 0)
     {
 
 
-        std::cout << "STOP RECORDING." << std::endl;
+        // std::cout << "STOP RECORDING." << std::endl;
 
         if (isRecording)
         {
@@ -420,7 +423,7 @@ void RecordNode::setParameter(int parameterIndex, float newValue)
                     if (blockIndex < BLOCK_LENGTH)
                     {
                         // fill out the rest of the current buffer
-                        writeContinuousBuffer(zeroBuffer.getSampleData(0), BLOCK_LENGTH - blockIndex, currentChannel);
+                        writeContinuousBuffer(zeroBuffer.getReadPointer(0), BLOCK_LENGTH - blockIndex, currentChannel);
                     }
 
                     closeFile(channelPointers[currentChannel]);
@@ -440,7 +443,7 @@ void RecordNode::setParameter(int parameterIndex, float newValue)
                     {
                         writeTimestampAndSampleCount(channelPointers[currentChannel]->file);
                         // fill up the first data block up to sample count
-                        writeContinuousBuffer(zeroBuffer.getSampleData(0), blockIndex, currentChannel);
+                        writeContinuousBuffer(zeroBuffer.getReadPointer(0), blockIndex, currentChannel);
                     }
 
                 }
@@ -457,7 +460,7 @@ void RecordNode::openFile(Channel* ch)
     FILE* chFile;
 
     bool fileExists = f.exists();
-    
+
     diskWriteLock.enter();
 
     chFile = fopen(ch->filename.toUTF8(), "ab");
@@ -470,9 +473,12 @@ void RecordNode::openFile(Channel* ch)
         //std::cout << header << std::endl;
         std::cout << "File ID: " << chFile << ", number of bytes: " << header.getNumBytesAsUTF8() << std::endl;
 
+
         fwrite(header.toUTF8(), 1, header.getNumBytesAsUTF8(), chFile);
 
         std::cout << "Wrote header." << std::endl;
+
+        std::cout << "Block index: " << blockIndex << std::endl;
 
     }
     else
@@ -491,13 +497,13 @@ void RecordNode::openFile(Channel* ch)
 
 void RecordNode::closeFile(Channel* ch)
 {
-    
+
     diskWriteLock.enter();
-    
+
     std::cout << "CLOSING FILE: " << ch->filename << std::endl;
     if (ch->file != NULL)
         fclose(ch->file);
-    
+
     diskWriteLock.exit();
 }
 
@@ -542,7 +548,7 @@ String RecordNode::generateHeader(Channel* ch)
 
     header += "header.sampleRate = ";
     // all channels need to have the same sample rate under the current scheme
-    header += String(channelPointers[0]->sampleRate); 
+    header += String(channelPointers[0]->sampleRate);
     header += ";\n";
     header += "header.blockLength = ";
     header += BLOCK_LENGTH;
@@ -564,25 +570,27 @@ String RecordNode::generateHeader(Channel* ch)
 
 void RecordNode::closeAllFiles()
 {
-
-    for (int i = 0; i < channelPointers.size(); i++)
+    if (allFilesOpened)
     {
-        if (channelPointers[i]->getRecordState())
+        for (int i = 0; i < channelPointers.size(); i++)
         {
-
-            if (blockIndex < BLOCK_LENGTH)
+            if (channelPointers[i]->getRecordState())
             {
-                // fill out the rest of the current buffer
-                writeContinuousBuffer(zeroBuffer.getSampleData(0), BLOCK_LENGTH - blockIndex, i);
+
+                if (blockIndex < BLOCK_LENGTH)
+                {
+                    // fill out the rest of the current buffer
+                    writeContinuousBuffer(zeroBuffer.getReadPointer(0), BLOCK_LENGTH - blockIndex, i);
+                }
+
+                closeFile(channelPointers[i]);
             }
-
-            closeFile(channelPointers[i]);
         }
+
+        closeFile(eventChannel);
+        blockIndex = 0; // back to the beginning of the block
+        allFilesOpened = false;
     }
-
-    closeFile(eventChannel);
-
-    blockIndex = 0; // back to the beginning of the block
 }
 
 bool RecordNode::enable()
@@ -598,6 +606,9 @@ bool RecordNode::disable()
     // close files if necessary
     setParameter(0, 10.0f);
 
+    if (isProcessing)
+        closeAllFiles();
+
     isProcessing = false;
 
     return true;
@@ -608,7 +619,7 @@ float RecordNode::getFreeSpace()
     return 1.0f - float(dataDirectory.getBytesFreeOnVolume())/float(dataDirectory.getVolumeTotalSize());
 }
 
-void RecordNode::writeContinuousBuffer(float* data, int nSamples, int channel)
+void RecordNode::writeContinuousBuffer(const float* data, int nSamples, int channel)
 {
 
     // check to see if the file exists
@@ -631,14 +642,14 @@ void RecordNode::writeContinuousBuffer(float* data, int nSamples, int channel)
     diskWriteLock.enter();
 
     size_t count = fwrite(continuousDataIntegerBuffer, // ptr
-                   2,                               // size of each element
-                   nSamples,                        // count
-                   channelPointers[channel]->file); // ptr to FILE object
+                          2,                               // size of each element
+                          nSamples,                        // count
+                          channelPointers[channel]->file); // ptr to FILE object
 
     jassert(count == nSamples); // make sure all the data was written
 
     diskWriteLock.exit();
-    
+
     if (blockIndex + nSamples == BLOCK_LENGTH)
     {
         writeRecordMarker(channelPointers[channel]->file);
@@ -651,7 +662,7 @@ void RecordNode::writeTimestampAndSampleCount(FILE* file)
 
 
     diskWriteLock.enter();
-    
+
     uint16 samps = BLOCK_LENGTH;
 
     fwrite(&timestamp,                       // ptr
@@ -692,6 +703,9 @@ void RecordNode::writeEventBuffer(MidiMessage& event, int samplePosition) //, in
     // find file and write samples to disk
     // std::cout << "Received event!" << std::endl;
 
+    if (eventChannel->file == NULL)
+        return;
+
     const uint8* dataptr = event.getRawData();
 
     if (event.getNoteNumber() > 0) // processor ID > 0
@@ -717,9 +731,9 @@ void RecordNode::writeEventBuffer(MidiMessage& event, int samplePosition) //, in
 
         // write recording number
         fwrite(&recordingNumber,                     // ptr
-           2,                               // size of each element
-           1,                               // count
-           eventChannel->file);             // ptr to FILE object
+               2,                               // size of each element
+               1,                               // count
+               eventChannel->file);             // ptr to FILE object
 
         diskWriteLock.exit();
     }
@@ -766,7 +780,7 @@ void RecordNode::process(AudioSampleBuffer& buffer,
     // CONSTRAINTS:
     // samplesWritten must equal nSamples by the end of the process() method
 
-    if (isRecording)
+    if (isRecording && allFilesOpened)
     {
 
         // FIRST: cycle through events -- extract the TTLs and the timestamps
@@ -792,7 +806,7 @@ void RecordNode::process(AudioSampleBuffer& buffer,
                         if (channelPointers[i]->getRecordState())
                         {
                             // write buffer to disk!
-                            writeContinuousBuffer(buffer.getSampleData(i,samplesWritten),
+                            writeContinuousBuffer(buffer.getReadPointer(i,samplesWritten),
                                                   numSamplesToWrite,
                                                   i);
 
@@ -816,7 +830,7 @@ void RecordNode::process(AudioSampleBuffer& buffer,
                         if (channelPointers[i]->getRecordState())
                         {
                             // write buffer to disk!
-                            writeContinuousBuffer(buffer.getSampleData(i,samplesWritten),
+                            writeContinuousBuffer(buffer.getReadPointer(i,samplesWritten),
                                                   numSamplesToWrite,
                                                   i);
 
@@ -828,7 +842,7 @@ void RecordNode::process(AudioSampleBuffer& buffer,
                     samplesWritten += numSamplesToWrite;
                     timestamp += numSamplesToWrite;
                     blockIndex = 0; // back to the beginning of the block
-                    
+
                 }
             }
         }

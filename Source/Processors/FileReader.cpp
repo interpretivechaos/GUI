@@ -162,7 +162,7 @@ void FileReader::process(AudioSampleBuffer& buffer, MidiBuffer& events, int& nSa
     //     counter++;
 
     // }
-    
+
 
 
     int samplesNeeded = (int) float(buffer.getNumSamples()) * (getDefaultSampleRate()/44100.0f);
@@ -200,13 +200,13 @@ void FileReader::process(AudioSampleBuffer& buffer, MidiBuffer& events, int& nSa
         int16 sample = readBuffer[n];
 
 #ifdef JUCE_WINDOWS //-- big-endian format
-            // reverse the byte order
-	//	float sample_f;
-	//	AudioDataConverters::convertInt16BEToFloat(&readBuffer[n], &sample_f, 1);
+        // reverse the byte order
+        //	float sample_f;
+        //	AudioDataConverters::convertInt16BEToFloat(&readBuffer[n], &sample_f, 1);
 
 #endif
 
-        *buffer.getSampleData(chan++, samp) = -sample * getDefaultBitVolts();
+        *buffer.getWritePointer(chan++, samp) = -sample * getDefaultBitVolts();
 
     }
 

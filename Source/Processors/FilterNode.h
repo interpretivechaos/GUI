@@ -58,6 +58,7 @@ public:
 
     double getLowCutValueForChannel(int chan);
     double getHighCutValueForChannel(int chan);
+    bool getBypassStatusForChannel(int chan);
 
     void updateSettings();
 
@@ -65,11 +66,14 @@ public:
 
     void loadCustomChannelParametersFromXml(XmlElement* channelInfo, bool isEventChannel);
 
+    void setApplyOnADC(bool state);
 private:
 
     Array<double> lowCuts, highCuts;
     OwnedArray<Dsp::Filter> filters;
+    Array<bool> shouldFilterChannel;
 
+    bool applyOnADC;
     double defaultLowCut;
     double defaultHighCut;
 

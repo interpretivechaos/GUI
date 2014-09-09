@@ -52,6 +52,10 @@ public:
 
     void mouseDown(const MouseEvent& event);
 
+    int getPathForEditor(GenericEditor* editor);
+
+    Array<GenericEditor*> getConnectedEditors();
+
 private:
 
     ImageButton* pipelineSelectorA;

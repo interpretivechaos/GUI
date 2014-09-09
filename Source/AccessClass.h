@@ -42,8 +42,11 @@ class ProcessorGraph;
 class MessageCenter;
 class ControlPanel;
 class AudioComponent;
+
 class MainWindow;
 class MatlabEngineInterface;
+
+class GraphViewer;
 
 
 /**
@@ -129,12 +132,19 @@ public:
         return ac;
     }
 
+
     /** Returns a pointer to the application's MatlabEngineInterface */
     MatlabEngineInterface* getMatlabEngineInterface()
     {
         // std::cout << "Got the probably unspecified MatlabEngineInterface from AccessClass @." << me << std::endl;
 
         return me;
+
+    /** Returns a pointer to the application's GraphViewer. */
+    GraphViewer* getGraphViewer()
+    {
+        return gv;
+
     }
 
 private:
@@ -147,7 +157,11 @@ private:
     ControlPanel* cp;
     MessageCenter* mc;
     AudioComponent* ac;
+
     MatlabEngineInterface* me;
+
+    GraphViewer* gv;
+
 
 };
 
